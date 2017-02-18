@@ -1,0 +1,216 @@
+{
+    "memo": "15794b4abdb804083692c3a0748369c93ed4193c0b60cbf65a65736cacb60df7",
+    "projects": [
+        {
+            "name": "github.com/a8m/expect",
+            "branch": "master",
+            "revision": "d82b422c2d08cf2875d3a983eb6b66bb0068777c",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/aymerick/raymond",
+            "version": "v2.0.1",
+            "revision": "a2232af10b53ef1ae5a767f5178db3a6c1dab655",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/boltdb/bolt",
+            "version": "v1.3.0",
+            "revision": "583e8937c61f1af6513608ccc75c97b6abdf4ff9",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/bwmarrin/discordgo",
+            "version": "v0.15.0",
+            "revision": "5835676872d7fa65ee37b32672079c4ede2c1855",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/fluffle/goirc",
+            "branch": "master",
+            "revision": "329a62d7d90841a3c3ac1197abd940afb81f7060",
+            "packages": [
+                "client",
+                "logging/golog"
+            ]
+        },
+        {
+            "name": "github.com/fluffle/golog",
+            "branch": "master",
+            "revision": "b962005bd4ccc6c0caee3dac35cdd29a5af92f4c",
+            "packages": [
+                "logging"
+            ]
+        },
+        {
+            "name": "github.com/fsnotify/fsnotify",
+            "version": "v1.4.2",
+            "revision": "629574ca2a5df945712d3079857300b5e4da0236",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/golang/mock",
+            "branch": "master",
+            "revision": "bd3c8e81be01eef76d4b503f5e687d2d1354d2d9",
+            "packages": [
+                "gomock"
+            ]
+        },
+        {
+            "name": "github.com/gorilla/websocket",
+            "version": "v1.1.0",
+            "revision": "3ab3a8b8831546bd18fd182c20687ca853b2bb13",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/hashicorp/hcl",
+            "branch": "master",
+            "revision": "630949a3c5fa3c613328e1b8256052cbc2327c9b",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/magiconair/properties",
+            "version": "v1.7.0",
+            "revision": "c265cfa48dda6474e208715ca93e987829f572f8",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/mitchellh/mapstructure",
+            "branch": "master",
+            "revision": "db1efb556f84b25a0a13a04aad883943538ad2e0",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/pebbe/zmq4",
+            "branch": "master",
+            "revision": "86a301353efd154593d5c851a092dc21e907a601",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/pelletier/go-buffruneio",
+            "branch": "master",
+            "revision": "df1e16fde7fc330a0ca68167c23bf7ed6ac31d6d",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/pelletier/go-toml",
+            "version": "v0.4.0",
+            "revision": "d464759235b8fd59f8ab4c44807d7c36e1678add",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/satori/go.uuid",
+            "version": "v1.1.0",
+            "revision": "879c5887cd475cd7864858769793b2ceb0d44feb",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/spf13/afero",
+            "branch": "master",
+            "revision": "9be650865eab0c12963d8753212f4f9c66cdcf12",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/spf13/cast",
+            "branch": "master",
+            "revision": "d1139bab1c07d5ad390a65e7305876b3c1a8370b",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/spf13/jwalterweatherman",
+            "branch": "master",
+            "revision": "fa7ca7e836cf3a8bb4ebf799f472c12d7e903d66",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/spf13/pflag",
+            "branch": "master",
+            "revision": "9ff6c6923cfffbcd502984b8e0c80539a94968b7",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/spf13/viper",
+            "branch": "master",
+            "revision": "7538d73b4eb9511d85a9f1dfef202eeb8ac260f4",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "golang.org/x/crypto",
+            "branch": "master",
+            "revision": "453249f01cfeb54c3d549ddb75ff152ca243f9d8",
+            "packages": [
+                "nacl/secretbox"
+            ]
+        },
+        {
+            "name": "golang.org/x/net",
+            "branch": "master",
+            "revision": "6b27048ae5e6ad1ef927e72e437531493de612fe",
+            "packages": [
+                "proxy",
+                "websocket"
+            ]
+        },
+        {
+            "name": "golang.org/x/sys",
+            "branch": "master",
+            "revision": "075e574b89e4c2d22f2286a7e2b919519c6f3547",
+            "packages": [
+                "unix"
+            ]
+        },
+        {
+            "name": "golang.org/x/text",
+            "branch": "master",
+            "revision": "85c29909967d7f171f821e7a42e7b7af76fb9598",
+            "packages": [
+                "transform",
+                "unicode/norm"
+            ]
+        },
+        {
+            "name": "gopkg.in/yaml.v2",
+            "branch": "v2",
+            "revision": "a3f3340b5840cee44f372bddb5880fcbc419b46a",
+            "packages": [
+                "."
+            ]
+        }
+    ]
+}
