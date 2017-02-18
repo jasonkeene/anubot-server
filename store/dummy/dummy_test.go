@@ -3,7 +3,7 @@ package dummy
 import (
 	"testing"
 
-	"anubot/store"
+	"github.com/jasonkeene/anubot-server/store"
 )
 
 func TestThatDummyBackendCompliesWithAllStoreMethods(t *testing.T) {

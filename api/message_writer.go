@@ -1,7 +1,7 @@
 package api
 
 import (
-	"anubot/stream"
+	"github.com/jasonkeene/anubot-server/stream"
 	"encoding/json"
 	"fmt"
 	"log"

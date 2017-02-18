@@ -10,9 +10,9 @@ import (
 	"github.com/boltdb/bolt"
 	uuid "github.com/satori/go.uuid"
 
-	"anubot/store"
-	"anubot/stream"
-	"anubot/twitch/oauth"
+	"github.com/jasonkeene/anubot-server/store"
+	"github.com/jasonkeene/anubot-server/stream"
+	"github.com/jasonkeene/anubot-server/twitch/oauth"
 )
 
 // Bolt is a store backend for boltdb.

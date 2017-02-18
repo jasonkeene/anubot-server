@@ -10,14 +10,14 @@ import (
 	"github.com/fluffle/goirc/logging/golog"
 	"github.com/spf13/viper"
 
-	"anubot/api"
-	"anubot/bot"
-	"anubot/dispatch"
-	"anubot/store"
-	"anubot/store/bolt"
-	"anubot/stream"
-	"anubot/twitch"
-	"anubot/twitch/oauth"
+	"github.com/jasonkeene/anubot-server/api"
+	"github.com/jasonkeene/anubot-server/bot"
+	"github.com/jasonkeene/anubot-server/dispatch"
+	"github.com/jasonkeene/anubot-server/store"
+	"github.com/jasonkeene/anubot-server/store/bolt"
+	"github.com/jasonkeene/anubot-server/stream"
+	"github.com/jasonkeene/anubot-server/twitch"
+	"github.com/jasonkeene/anubot-server/twitch/oauth"
 )
 
 func init() {

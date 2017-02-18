@@ -1,6 +1,6 @@
 package store
 
-import "anubot/stream"
+import "github.com/jasonkeene/anubot-server/stream"
 
 // Store is the interface all storage backends implement.
 type Store interface {

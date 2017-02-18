@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"anubot/store"
-	"anubot/twitch"
+	"github.com/jasonkeene/anubot-server/store"
+	"github.com/jasonkeene/anubot-server/twitch"
 )
 
 // NonceStore is used to to store and operate on oauth nonces.

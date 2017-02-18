@@ -9,10 +9,10 @@ import (
 
 	"github.com/satori/go.uuid"
 
-	"anubot/bot"
-	"anubot/stream"
-	"anubot/twitch"
-	"anubot/twitch/oauth"
+	"github.com/jasonkeene/anubot-server/bot"
+	"github.com/jasonkeene/anubot-server/stream"
+	"github.com/jasonkeene/anubot-server/twitch"
+	"github.com/jasonkeene/anubot-server/twitch/oauth"
 )
 
 // Store is the object the Server uses to persist data.

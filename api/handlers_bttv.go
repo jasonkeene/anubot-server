@@ -1,7 +1,7 @@
 package api
 
 import (
-	"anubot/bttv"
+	"github.com/jasonkeene/anubot-server/bttv"
 	"log"
 )
 

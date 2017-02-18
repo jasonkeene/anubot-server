@@ -1,8 +1,8 @@
 package bot_test
 
 import (
-	"anubot/bot"
-	"anubot/stream"
+	"github.com/jasonkeene/anubot-server/bot"
+	"github.com/jasonkeene/anubot-server/stream"
 	"crypto/rand"
 	"encoding/json"
 	"fmt"

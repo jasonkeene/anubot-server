@@ -8,8 +8,8 @@ import (
 
 	"github.com/boltdb/bolt"
 
-	"anubot/store"
-	"anubot/stream"
+	"github.com/jasonkeene/anubot-server/store"
+	"github.com/jasonkeene/anubot-server/stream"
 )
 
 type userRecord struct {

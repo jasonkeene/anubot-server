@@ -1,7 +1,7 @@
 package bot
 
 import (
-	"anubot/stream"
+	"github.com/jasonkeene/anubot-server/stream"
 	"encoding/json"
 	"log"
 	"sync"

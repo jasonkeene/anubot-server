@@ -10,8 +10,8 @@ import (
 	"github.com/a8m/expect"
 	"github.com/fluffle/goirc/client"
 
-	"anubot/store"
-	"anubot/stream"
+	"github.com/jasonkeene/anubot-server/store"
+	"github.com/jasonkeene/anubot-server/stream"
 )
 
 func TestThatBoltBackendCompliesWithAllStoreMethods(t *testing.T) {

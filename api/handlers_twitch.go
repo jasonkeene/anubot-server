@@ -1,9 +1,9 @@
 package api
 
 import (
-	"anubot/store"
-	"anubot/stream"
-	"anubot/twitch/oauth"
+	"github.com/jasonkeene/anubot-server/store"
+	"github.com/jasonkeene/anubot-server/stream"
+	"github.com/jasonkeene/anubot-server/twitch/oauth"
 	"log"
 )
 

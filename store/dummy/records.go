@@ -3,7 +3,7 @@ package dummy
 import (
 	"time"
 
-	"anubot/store"
+	"github.com/jasonkeene/anubot-server/store"
 )
 
 type nonceRecord struct {

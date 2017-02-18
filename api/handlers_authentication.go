@@ -1,6 +1,6 @@
 package api
 
-import "anubot/store"
+import "github.com/jasonkeene/anubot-server/store"
 
 // registerHandler accepts registration information and authenticates the
 // session.

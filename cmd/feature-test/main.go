@@ -10,10 +10,10 @@ import (
 	"github.com/pebbe/zmq4"
 	"github.com/spf13/viper"
 
-	"anubot/bot"
-	"anubot/dispatch"
-	"anubot/stream"
-	"anubot/twitch"
+	"github.com/jasonkeene/anubot-server/bot"
+	"github.com/jasonkeene/anubot-server/dispatch"
+	"github.com/jasonkeene/anubot-server/stream"
+	"github.com/jasonkeene/anubot-server/twitch"
 )
 
 func init() {

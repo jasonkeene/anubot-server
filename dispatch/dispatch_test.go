@@ -9,7 +9,7 @@ import (
 	"github.com/a8m/expect"
 	"github.com/pebbe/zmq4"
 
-	"anubot/dispatch"
+	"github.com/jasonkeene/anubot-server/dispatch"
 )
 
 func TestDispatcher(t *testing.T) {

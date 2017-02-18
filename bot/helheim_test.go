@@ -5,7 +5,7 @@
 
 package bot_test
 
-import "anubot/stream"
+import "github.com/jasonkeene/anubot-server/stream"
 
 type mockFeature struct {
 	HandleMessageCalled chan bool
