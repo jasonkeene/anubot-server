@@ -1,0 +1,17 @@
+
+# mac
+._*
+__MACOSX
+.DS_Store
+
+# win
+*~
+Thumbs.db
+desktop.ini
+
+# vim
+*.swp
+
+# go
+*.coverprofile
+/vendor/
