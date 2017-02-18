@@ -1,10 +1,11 @@
 package api
 
 import (
+	"log"
+
 	"github.com/jasonkeene/anubot-server/store"
 	"github.com/jasonkeene/anubot-server/stream"
 	"github.com/jasonkeene/anubot-server/twitch/oauth"
-	"log"
 )
 
 // twitchOauthStartHandler responds with a URL to start the Twitch oauth flow.

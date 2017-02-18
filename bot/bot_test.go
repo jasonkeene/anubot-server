@@ -1,14 +1,15 @@
 package bot_test
 
 import (
-	"github.com/jasonkeene/anubot-server/bot"
-	"github.com/jasonkeene/anubot-server/stream"
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"log"
 	"testing"
 	"time"
+
+	"github.com/jasonkeene/anubot-server/bot"
+	"github.com/jasonkeene/anubot-server/stream"
 
 	"github.com/a8m/expect"
 	"github.com/fluffle/goirc/client"

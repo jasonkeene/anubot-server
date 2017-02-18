@@ -1,11 +1,12 @@
 package api
 
 import (
-	"github.com/jasonkeene/anubot-server/stream"
 	"encoding/json"
 	"fmt"
 	"log"
 	"time"
+
+	"github.com/jasonkeene/anubot-server/stream"
 
 	"github.com/pebbe/zmq4"
 	"golang.org/x/net/websocket"

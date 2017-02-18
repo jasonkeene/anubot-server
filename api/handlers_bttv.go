@@ -1,8 +1,9 @@
 package api
 
 import (
-	"github.com/jasonkeene/anubot-server/bttv"
 	"log"
+
+	"github.com/jasonkeene/anubot-server/bttv"
 )
 
 // bttvEmojiHandler returns emoji from BTTV. If the user has authenticated

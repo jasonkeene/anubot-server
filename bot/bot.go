@@ -1,10 +1,11 @@
 package bot
 
 import (
-	"github.com/jasonkeene/anubot-server/stream"
 	"encoding/json"
 	"log"
 	"sync"
+
+	"github.com/jasonkeene/anubot-server/stream"
 
 	"github.com/pebbe/zmq4"
 )

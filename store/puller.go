@@ -1,9 +1,10 @@
 package store
 
 import (
-	"github.com/jasonkeene/anubot-server/stream"
 	"encoding/json"
 	"log"
+
+	"github.com/jasonkeene/anubot-server/stream"
 
 	"github.com/pebbe/zmq4"
 )

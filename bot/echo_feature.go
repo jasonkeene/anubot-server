@@ -1,9 +1,10 @@
 package bot
 
 import (
-	"github.com/jasonkeene/anubot-server/stream"
 	"fmt"
 	"strings"
+
+	"github.com/jasonkeene/anubot-server/stream"
 )
 
 // EchoFeature echos messages back to the user.
