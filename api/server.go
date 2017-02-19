@@ -88,7 +88,7 @@ func (api *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			log.Printf("got error while closing ws conn: %s", err)
 		}
 	}()
-	go api.writePings()
+	go writePings(ws)
 
 	s := &session{
 		id:  uuid.NewV4().String(),
@@ -123,7 +123,7 @@ func (api *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (api *Server) writePings() {
+func writePings(ws *websocket.Conn) {
 	for {
 		time.Sleep(5 * time.Second)
 		err := ws.WriteControl(websocket.PingMessage, nil, time.Now().Add(time.Second))
