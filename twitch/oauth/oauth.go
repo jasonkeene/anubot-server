@@ -19,7 +19,7 @@ import (
 // NonceStore is used to to store and operate on oauth nonces.
 type NonceStore interface {
 	CreateOauthNonce(userID string, tu store.TwitchUser) (nonce string, err error)
-	OauthNonceExists(nonce string) (exists bool)
+	OauthNonceExists(nonce string) (exists bool, err error)
 	FinishOauthNonce(nonce, username string, userID int, od store.OauthData) (err error)
 }
 
@@ -88,7 +88,8 @@ func (h DoneHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// validate nonce
 	nonce := values.Get("state")
-	if !h.ns.OauthNonceExists(nonce) {
+	ok, err := h.ns.OauthNonceExists(nonce)
+	if !ok || err != nil {
 		log.Print("bad nonce")
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -103,7 +104,7 @@ func (h DoneHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// create request to send to twitch
-	r, err := http.NewRequest("POST", tokenURL, h.createPayload(nonce, code))
+	req, err := http.NewRequest("POST", tokenURL, h.createPayload(nonce, code))
 	if err != nil {
 		log.Printf("unable to create request for posting to twitch oauth for token: %s", err)
 		w.WriteHeader(http.StatusBadRequest)
@@ -111,7 +112,7 @@ func (h DoneHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// make request to twitch
-	resp, err := httpClient.Do(r)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		log.Printf("error in response from post to twitch oauth for token: %s", err)
 		w.WriteHeader(http.StatusBadRequest)

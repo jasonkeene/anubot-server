@@ -101,8 +101,8 @@ func authenticateHandler(e event, s *session) {
 	}
 
 	// attempt to authenticate the user
-	id, ok := s.Store().AuthenticateUser(username, password)
-	if !ok {
+	id, ok, err := s.Store().AuthenticateUser(username, password)
+	if !ok || err != nil {
 		resp.Error = authenticationError
 		return
 	}

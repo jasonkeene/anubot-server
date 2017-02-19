@@ -37,11 +37,13 @@ func TestThatUsersCanAuthenticate(t *testing.T) {
 	expectedUserID, err := b.RegisterUser("test-user", "test-pass")
 	expect(err).To.Be.Nil()
 
-	userID, authenticated := b.AuthenticateUser("test-user", "bad-pass")
+	userID, authenticated, err := b.AuthenticateUser("test-user", "bad-pass")
+	expect(err).To.Be.Nil()
 	expect(userID).To.Equal("")
 	expect(authenticated).Not.To.Be.Ok()
 
-	userID, authenticated = b.AuthenticateUser("test-user", "test-pass")
+	userID, authenticated, err = b.AuthenticateUser("test-user", "test-pass")
+	expect(err).To.Be.Nil()
 	expect(userID).To.Equal(expectedUserID)
 	expect(authenticated).To.Be.Ok()
 }
@@ -56,7 +58,10 @@ func TestThatStreamerUsersCanAuthenticate(t *testing.T) {
 
 	nonce, err := b.CreateOauthNonce(userID, store.Streamer)
 	expect(err).To.Be.Nil()
-	expect(b.OauthNonceExists(nonce)).To.Be.Ok()
+
+	ok, err := b.OauthNonceExists(nonce)
+	expect(err).To.Be.Nil()
+	expect(ok).To.Be.Ok()
 
 	od := store.OauthData{
 		AccessToken:  "test-access-token",
@@ -65,10 +70,14 @@ func TestThatStreamerUsersCanAuthenticate(t *testing.T) {
 	}
 	err = b.FinishOauthNonce(nonce, "test-streamer-user", 12345, od)
 	expect(err).To.Be.Nil()
-	expect(b.OauthNonceExists(nonce)).Not.To.Be.Ok()
-	expect(b.TwitchStreamerAuthenticated(userID)).To.Be.Ok()
+	ok, _ = b.OauthNonceExists(nonce)
+	expect(ok).Not.To.Be.Ok()
+	ok, err = b.TwitchStreamerAuthenticated(userID)
+	expect(err).To.Be.Nil()
+	expect(ok).To.Be.Ok()
 
-	user, pass, _ := b.TwitchStreamerCredentials(userID)
+	user, pass, _, err := b.TwitchStreamerCredentials(userID)
+	expect(err).To.Be.Nil()
 	expect(user).To.Equal("test-streamer-user")
 	expect(pass).To.Equal("test-access-token")
 }
@@ -83,7 +92,9 @@ func TestThatOauthFlowForBotsWorks(t *testing.T) {
 
 	nonce, err := b.CreateOauthNonce(userID, store.Bot)
 	expect(err).To.Be.Nil()
-	expect(b.OauthNonceExists(nonce)).To.Be.Ok()
+	ok, err := b.OauthNonceExists(nonce)
+	expect(err).To.Be.Nil()
+	expect(ok).To.Be.Ok()
 
 	od := store.OauthData{
 		AccessToken:  "test-access-token",
@@ -92,10 +103,14 @@ func TestThatOauthFlowForBotsWorks(t *testing.T) {
 	}
 	err = b.FinishOauthNonce(nonce, "test-bot-user", 12345, od)
 	expect(err).To.Be.Nil()
-	expect(b.OauthNonceExists(nonce)).Not.To.Be.Ok()
-	expect(b.TwitchBotAuthenticated(userID)).To.Be.Ok()
+	ok, _ = b.OauthNonceExists(nonce)
+	expect(ok).Not.To.Be.Ok()
+	ok, err = b.TwitchBotAuthenticated(userID)
+	expect(err).To.Be.Nil()
+	expect(ok).To.Be.Ok()
 
-	user, pass, _ := b.TwitchBotCredentials(userID)
+	user, pass, _, err := b.TwitchBotCredentials(userID)
+	expect(err).To.Be.Nil()
 	expect(user).To.Equal("test-bot-user")
 	expect(pass).To.Equal("test-access-token")
 }
@@ -117,20 +132,35 @@ func TestThatYouCanClearTwitchAuthData(t *testing.T) {
 	expect(err).To.Be.Nil()
 	err = b.FinishOauthNonce(nonce, "test-streamer-user", 12345, od)
 	expect(err).To.Be.Nil()
-	expect(b.TwitchStreamerAuthenticated(userID)).To.Be.Ok()
-	expect(b.TwitchAuthenticated(userID)).Not.To.Be.Ok()
+	ok, err := b.TwitchStreamerAuthenticated(userID)
+	expect(err).To.Be.Nil()
+	expect(ok).To.Be.Ok()
+	ok, err = b.TwitchAuthenticated(userID)
+	expect(err).To.Be.Nil()
+	expect(ok).Not.To.Be.Ok()
 
 	nonce, err = b.CreateOauthNonce(userID, store.Bot)
 	expect(err).To.Be.Nil()
 	err = b.FinishOauthNonce(nonce, "test-bot-user", 12345, od)
 	expect(err).To.Be.Nil()
-	expect(b.TwitchBotAuthenticated(userID)).To.Be.Ok()
-	expect(b.TwitchAuthenticated(userID)).To.Be.Ok()
+	ok, err = b.TwitchBotAuthenticated(userID)
+	expect(err).To.Be.Nil()
+	expect(ok).To.Be.Ok()
+	ok, err = b.TwitchAuthenticated(userID)
+	expect(err).To.Be.Nil()
+	expect(ok).To.Be.Ok()
 
-	b.TwitchClearAuth(userID)
-	expect(b.TwitchStreamerAuthenticated(userID)).Not.To.Be.Ok()
-	expect(b.TwitchBotAuthenticated(userID)).Not.To.Be.Ok()
-	expect(b.TwitchAuthenticated(userID)).Not.To.Be.Ok()
+	err = b.TwitchClearAuth(userID)
+	expect(err).To.Be.Nil()
+	ok, err = b.TwitchStreamerAuthenticated(userID)
+	expect(err).To.Be.Nil()
+	expect(ok).Not.To.Be.Ok()
+	ok, err = b.TwitchBotAuthenticated(userID)
+	expect(err).To.Be.Nil()
+	expect(ok).Not.To.Be.Ok()
+	ok, err = b.TwitchAuthenticated(userID)
+	expect(err).To.Be.Nil()
+	expect(ok).Not.To.Be.Ok()
 }
 
 func TestThatYouCanStoreMessages(t *testing.T) {
@@ -150,15 +180,21 @@ func TestThatYouCanStoreMessages(t *testing.T) {
 	expect(err).To.Be.Nil()
 	err = b.FinishOauthNonce(nonce, "test-streamer-user", 12345, od)
 	expect(err).To.Be.Nil()
-	expect(b.TwitchStreamerAuthenticated(userID)).To.Be.Ok()
-	expect(b.TwitchAuthenticated(userID)).Not.To.Be.Ok()
+	ok, err := b.TwitchStreamerAuthenticated(userID)
+	expect(err).To.Be.Nil()
+	expect(ok).To.Be.Ok()
+	ok, err = b.TwitchAuthenticated(userID)
+	expect(err).To.Be.Nil()
+	expect(ok).Not.To.Be.Ok()
 
 	nonce, err = b.CreateOauthNonce(userID, store.Bot)
 	expect(err).To.Be.Nil()
 	err = b.FinishOauthNonce(nonce, "test-bot-user", 54321, od)
 	expect(err).To.Be.Nil()
-	expect(b.TwitchBotAuthenticated(userID)).To.Be.Ok()
-	expect(b.TwitchAuthenticated(userID)).To.Be.Ok()
+	ok, _ = b.TwitchBotAuthenticated(userID)
+	expect(ok).To.Be.Ok()
+	ok, _ = b.TwitchAuthenticated(userID)
+	expect(ok).To.Be.Ok()
 
 	msg1 := stream.RXMessage{
 		Type: stream.Twitch,

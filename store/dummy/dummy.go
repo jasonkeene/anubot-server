@@ -51,18 +51,18 @@ func (d *Dummy) RegisterUser(username, password string) (string, error) {
 
 // AuthenticateUser checks to see if the given user credentials are valid. If
 // they are the user ID is returned with a bool to indicate success.
-func (d *Dummy) AuthenticateUser(username, password string) (string, bool) {
+func (d *Dummy) AuthenticateUser(username, password string) (string, bool, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
 	id, c, exists := d.users.lookup(username)
 	if !exists {
-		return "", false
+		return "", false, nil
 	}
 	if c.password != password {
-		return "", false
+		return "", false, nil
 	}
-	return id, true
+	return id, true, nil
 }
 
 // CreateOauthNonce creates and returns a unique oauth nonce.
@@ -88,11 +88,11 @@ func (d *Dummy) CreateOauthNonce(userID string, tu store.TwitchUser) (string, er
 
 // OauthNonceExists tells you if the provided nonce was recently created and
 // not yet finished.
-func (d *Dummy) OauthNonceExists(nonce string) bool {
+func (d *Dummy) OauthNonceExists(nonce string) (bool, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	_, ok := d.nonces[nonce]
-	return ok
+	return ok, nil
 }
 
 // FinishOauthNonce completes the oauth flow, removing the nonce and storing
@@ -130,50 +130,50 @@ func (d *Dummy) FinishOauthNonce(
 
 // TwitchStreamerAuthenticated tells you if the user has authenticated with
 // twitch and that we have valid oauth credentials.
-func (d *Dummy) TwitchStreamerAuthenticated(userID string) bool {
+func (d *Dummy) TwitchStreamerAuthenticated(userID string) (bool, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	ur := d.users[userID]
-	return ur.streamerOD.AccessToken != ""
+	return ur.streamerOD.AccessToken != "", nil
 }
 
 // TwitchStreamerCredentials gives you the credentials for the streamer user.
-func (d *Dummy) TwitchStreamerCredentials(userID string) (string, string, int) {
+func (d *Dummy) TwitchStreamerCredentials(userID string) (string, string, int, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	ur := d.users[userID]
-	return ur.streamerUsername, ur.streamerOD.AccessToken, 0
+	return ur.streamerUsername, ur.streamerOD.AccessToken, 0, nil
 }
 
 // TwitchBotAuthenticated tells you if the user has authenticated his bot with
 // twitch and that we have valid oauth credentials.
-func (d *Dummy) TwitchBotAuthenticated(userID string) bool {
+func (d *Dummy) TwitchBotAuthenticated(userID string) (bool, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	ur := d.users[userID]
-	return ur.botOD.AccessToken != ""
+	return ur.botOD.AccessToken != "", nil
 }
 
 // TwitchBotCredentials gives you the credentials for the streamer user.
-func (d *Dummy) TwitchBotCredentials(userID string) (string, string, int) {
+func (d *Dummy) TwitchBotCredentials(userID string) (string, string, int, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	ur := d.users[userID]
-	return ur.botUsername, ur.botOD.AccessToken, 0
+	return ur.botUsername, ur.botOD.AccessToken, 0, nil
 }
 
 // TwitchAuthenticated tells you if the user has authenticated his bot and
 // his streamer user with twitch and that we have valid oauth credentials.
-func (d *Dummy) TwitchAuthenticated(userID string) bool {
+func (d *Dummy) TwitchAuthenticated(userID string) (bool, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	ur := d.users[userID]
 	return ur.streamerOD.AccessToken != "" &&
-		ur.botOD.AccessToken != ""
+		ur.botOD.AccessToken != "", nil
 }
 
 // TwitchClearAuth removes all the auth data for twitch for the user.
-func (d *Dummy) TwitchClearAuth(userID string) {
+func (d *Dummy) TwitchClearAuth(userID string) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	ur := d.users[userID]
@@ -181,6 +181,7 @@ func (d *Dummy) TwitchClearAuth(userID string) {
 	ur.streamerUsername = ""
 	ur.botOD = store.OauthData{}
 	ur.botUsername = ""
+	return nil
 }
 
 // StoreMessage stores a message for a given user for later searching and

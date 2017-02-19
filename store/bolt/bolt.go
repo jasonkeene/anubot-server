@@ -2,6 +2,7 @@ package bolt
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"sort"
 	"strconv"
@@ -87,7 +88,7 @@ func (b *Bolt) RegisterUser(username, password string) (string, error) {
 
 // AuthenticateUser checks to see if the given user credentials are valid. If
 // they are the user ID is returned with a bool to indicate success.
-func (b *Bolt) AuthenticateUser(username, password string) (string, bool) {
+func (b *Bolt) AuthenticateUser(username, password string) (string, bool, error) {
 	var ur userRecord
 	err := b.db.View(func(tx *bolt.Tx) error {
 		var err error
@@ -95,13 +96,13 @@ func (b *Bolt) AuthenticateUser(username, password string) (string, bool) {
 		return err
 	})
 	if err != nil {
-		return "", false
+		return "", false, err
 	}
 
 	if ur.Password != password {
-		return "", false
+		return "", false, nil
 	}
-	return ur.UserID, true
+	return ur.UserID, true, nil
 }
 
 // CreateOauthNonce creates and returns a unique oauth nonce.
@@ -133,12 +134,12 @@ func (b *Bolt) CreateOauthNonce(userID string, tu store.TwitchUser) (string, err
 
 // OauthNonceExists tells you if the provided nonce was recently created and
 // not yet finished.
-func (b *Bolt) OauthNonceExists(nonce string) bool {
+func (b *Bolt) OauthNonceExists(nonce string) (bool, error) {
 	err := b.db.View(func(tx *bolt.Tx) error {
 		_, err := getNonceRecord(nonce, tx)
 		return err
 	})
-	return err == nil
+	return err == nil, err
 }
 
 // FinishOauthNonce completes the oauth flow, removing the nonce and storing
@@ -184,7 +185,7 @@ func (b *Bolt) FinishOauthNonce(
 
 // TwitchStreamerAuthenticated tells you if the user has authenticated with
 // twitch and that we have valid oauth credentials.
-func (b *Bolt) TwitchStreamerAuthenticated(userID string) bool {
+func (b *Bolt) TwitchStreamerAuthenticated(userID string) (bool, error) {
 	var ur userRecord
 	err := b.db.View(func(tx *bolt.Tx) error {
 		var err error
@@ -192,14 +193,14 @@ func (b *Bolt) TwitchStreamerAuthenticated(userID string) bool {
 		return err
 	})
 	if err != nil {
-		return false
+		return false, err
 	}
 
-	return ur.StreamerOD.AccessToken != ""
+	return ur.StreamerOD.AccessToken != "", nil
 }
 
 // TwitchStreamerCredentials gives you the credentials for the streamer user.
-func (b *Bolt) TwitchStreamerCredentials(userID string) (string, string, int) {
+func (b *Bolt) TwitchStreamerCredentials(userID string) (string, string, int, error) {
 	var ur userRecord
 	err := b.db.View(func(tx *bolt.Tx) error {
 		var err error
@@ -207,15 +208,15 @@ func (b *Bolt) TwitchStreamerCredentials(userID string) (string, string, int) {
 		return err
 	})
 	if err != nil {
-		return "", "", 0
+		return "", "", 0, err
 	}
 
-	return ur.StreamerUsername, ur.StreamerOD.AccessToken, ur.StreamerID
+	return ur.StreamerUsername, ur.StreamerOD.AccessToken, ur.StreamerID, nil
 }
 
 // TwitchBotAuthenticated tells you if the user has authenticated his bot with
 // twitch and that we have valid oauth credentials.
-func (b *Bolt) TwitchBotAuthenticated(userID string) bool {
+func (b *Bolt) TwitchBotAuthenticated(userID string) (bool, error) {
 	var ur userRecord
 	err := b.db.View(func(tx *bolt.Tx) error {
 		var err error
@@ -223,14 +224,14 @@ func (b *Bolt) TwitchBotAuthenticated(userID string) bool {
 		return err
 	})
 	if err != nil {
-		return false
+		return false, err
 	}
 
-	return ur.BotOD.AccessToken != ""
+	return ur.BotOD.AccessToken != "", nil
 }
 
 // TwitchBotCredentials gives you the credentials for the streamer user.
-func (b *Bolt) TwitchBotCredentials(userID string) (string, string, int) {
+func (b *Bolt) TwitchBotCredentials(userID string) (string, string, int, error) {
 	var ur userRecord
 	err := b.db.View(func(tx *bolt.Tx) error {
 		var err error
@@ -238,15 +239,15 @@ func (b *Bolt) TwitchBotCredentials(userID string) (string, string, int) {
 		return err
 	})
 	if err != nil {
-		return "", "", 0
+		return "", "", 0, err
 	}
 
-	return ur.BotUsername, ur.BotOD.AccessToken, ur.BotID
+	return ur.BotUsername, ur.BotOD.AccessToken, ur.BotID, nil
 }
 
 // TwitchAuthenticated tells you if the user has authenticated his bot and
 // his streamer user with twitch and that we have valid oauth credentials.
-func (b *Bolt) TwitchAuthenticated(userID string) bool {
+func (b *Bolt) TwitchAuthenticated(userID string) (bool, error) {
 	var ur userRecord
 	err := b.db.View(func(tx *bolt.Tx) error {
 		var err error
@@ -254,15 +255,15 @@ func (b *Bolt) TwitchAuthenticated(userID string) bool {
 		return err
 	})
 	if err != nil {
-		return false
+		return false, err
 	}
 
-	return ur.StreamerOD.AccessToken != "" && ur.BotOD.AccessToken != ""
+	return ur.StreamerOD.AccessToken != "" && ur.BotOD.AccessToken != "", nil
 }
 
 // TwitchClearAuth removes all the auth data for twitch for the user.
-func (b *Bolt) TwitchClearAuth(userID string) {
-	err := b.db.Update(func(tx *bolt.Tx) error {
+func (b *Bolt) TwitchClearAuth(userID string) error {
+	return b.db.Update(func(tx *bolt.Tx) error {
 		ur, err := getUserRecord(userID, tx)
 		if err != nil {
 			return err
@@ -273,9 +274,6 @@ func (b *Bolt) TwitchClearAuth(userID string) {
 		ur.BotOD = store.OauthData{}
 		return upsertUserRecord(ur, tx)
 	})
-	if err != nil {
-		log.Printf("could not clear twitch auth: %s", err)
-	}
 }
 
 // StoreMessage stores a message for a given user for later searching and
@@ -294,22 +292,29 @@ func (a byTimestamp) Less(i, j int) bool { return a[i].Twitch.Line.Time.Before(a
 
 // FetchRecentMessages gets the recent messages for the user's channel.
 func (b *Bolt) FetchRecentMessages(userID string) ([]stream.RXMessage, error) {
-	if !b.TwitchAuthenticated(userID) {
-		return nil, errors.New("user must be authenticated via twitch before requesting recent messages")
+	ok, err := b.TwitchAuthenticated(userID)
+	if !ok || err != nil {
+		return nil, err
 	}
 
 	var messages []stream.RXMessage
-	_, _, streamerUserID := b.TwitchStreamerCredentials(userID)
-	_, _, botUserID := b.TwitchBotCredentials(userID)
+	_, _, streamerUserID, err := b.TwitchStreamerCredentials(userID)
+	if err != nil {
+		return nil, err
+	}
+	_, _, botUserID, err := b.TwitchBotCredentials(userID)
+	if err != nil {
+		return nil, err
+	}
 
 	var mr messageRecord
-	err := b.db.View(func(tx *bolt.Tx) error {
+	err = b.db.View(func(tx *bolt.Tx) error {
 		var err error
 		mr, err = getMessageRecord("twitch:"+strconv.Itoa(streamerUserID), tx)
 		return err
 	})
 	if err != nil {
-		log.Printf("could not query messages for streamer: %s", err)
+		return nil, fmt.Errorf("could not query messages for streamer: %s", err)
 	}
 
 	messages = []stream.RXMessage(mr)
@@ -320,7 +325,7 @@ func (b *Bolt) FetchRecentMessages(userID string) ([]stream.RXMessage, error) {
 		return err
 	})
 	if err != nil {
-		log.Printf("could not query messages for bot: %s", err)
+		return nil, fmt.Errorf("could not query messages for bot: %s", err)
 	}
 
 	messages = append(messages, []stream.RXMessage(mr)...)

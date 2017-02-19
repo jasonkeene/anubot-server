@@ -12,14 +12,14 @@ type Store interface {
 
 	// AuthenticateUser checks to see if the given user credentials are valid.
 	// If they are the user ID is returned with a bool to indicate success.
-	AuthenticateUser(username, password string) (userID string, success bool)
+	AuthenticateUser(username, password string) (userID string, success bool, err error)
 
 	// CreateOauthNonce creates and returns a unique oauth nonce.
 	CreateOauthNonce(userID string, tu TwitchUser) (nonce string, err error)
 
 	// OauthNonceExists tells you if the provided nonce was recently created
 	// and not yet finished.
-	OauthNonceExists(nonce string) (exists bool)
+	OauthNonceExists(nonce string) (exists bool, err error)
 
 	// FinishOauthNonce completes the oauth flow, removing the nonce and
 	// storing the oauth data.
@@ -27,25 +27,25 @@ type Store interface {
 
 	// TwitchStreamerAuthenticated tells you if the user has authenticated with
 	// twitch and that we have valid oauth credentials.
-	TwitchStreamerAuthenticated(userID string) (authenticated bool)
+	TwitchStreamerAuthenticated(userID string) (authenticated bool, err error)
 
 	// TwitchStreamerCredentials gives you the credentials for the streamer
 	// user.
-	TwitchStreamerCredentials(userID string) (username, password string, twitchUserID int)
+	TwitchStreamerCredentials(userID string) (username, password string, twitchUserID int, err error)
 
 	// TwitchBotAuthenticated tells you if the user has authenticated his bot
 	// with twitch and that we have valid oauth credentials.
-	TwitchBotAuthenticated(userID string) (authenticated bool)
+	TwitchBotAuthenticated(userID string) (authenticated bool, err error)
 
 	// TwitchBotCredentials gives you the credentials for the streamer user.
-	TwitchBotCredentials(userID string) (username, password string, twitchUserID int)
+	TwitchBotCredentials(userID string) (username, password string, twitchUserID int, err error)
 
 	// TwitchAuthenticated tells you if the user has authenticated his bot and
 	// his streamer user with twitch and that we have valid oauth credentials.
-	TwitchAuthenticated(userID string) (authenticated bool)
+	TwitchAuthenticated(userID string) (authenticated bool, err error)
 
 	// TwitchClearAuth removes all the auth data for twitch for the user.
-	TwitchClearAuth(userID string)
+	TwitchClearAuth(userID string) (err error)
 
 	// StoreMessage stores a message for a given user for later searching and
 	// scrollback history.

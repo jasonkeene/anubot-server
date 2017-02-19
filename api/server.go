@@ -17,14 +17,14 @@ import (
 // Store is the object the Server uses to persist data.
 type Store interface {
 	RegisterUser(username, password string) (userID string, err error)
-	AuthenticateUser(username, password string) (userID string, authenticated bool)
-	TwitchClearAuth(userID string)
-	TwitchAuthenticated(userID string) (authenticated bool)
-	TwitchStreamerAuthenticated(userID string) (authenticated bool)
-	TwitchStreamerCredentials(userID string) (string, string, int)
-	TwitchBotAuthenticated(userID string) (authenticated bool)
-	TwitchBotCredentials(userID string) (string, string, int)
-	FetchRecentMessages(userID string) ([]stream.RXMessage, error)
+	AuthenticateUser(username, password string) (userID string, authenticated bool, err error)
+	TwitchClearAuth(userID string) (err error)
+	TwitchAuthenticated(userID string) (authenticated bool, err error)
+	TwitchStreamerAuthenticated(userID string) (authenticated bool, err error)
+	TwitchStreamerCredentials(userID string) (username, password string, twitchUserID int, err error)
+	TwitchBotAuthenticated(userID string) (authenticated bool, err error)
+	TwitchBotCredentials(userID string) (username, password string, twitchUserID int, err error)
+	FetchRecentMessages(userID string) (msgs []stream.RXMessage, err error)
 
 	oauth.NonceStore
 }
