@@ -1,13 +1,11 @@
 package api
 
 import (
-	"io"
 	"log"
-	"net"
+	"net/http"
 
-	"golang.org/x/net/websocket"
-
-	"github.com/satori/go.uuid"
+	"github.com/gorilla/websocket"
+	uuid "github.com/satori/go.uuid"
 
 	"github.com/jasonkeene/anubot-server/bot"
 	"github.com/jasonkeene/anubot-server/stream"
@@ -74,8 +72,15 @@ func New(
 	return s
 }
 
-// Serve reads off of a websocket connection and responds to events.
-func (api *Server) Serve(ws *websocket.Conn) {
+var upgrader = websocket.Upgrader{}
+
+// ServeHTTP processes the websocket connection, reading and writing events.
+func (api *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	ws, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Print("got error while upgrading ws conn:", err)
+		return
+	}
 	defer func() {
 		err := ws.Close()
 		if err != nil {
@@ -88,33 +93,30 @@ func (api *Server) Serve(ws *websocket.Conn) {
 		ws:  ws,
 		api: api,
 	}
-	log.Printf("Serving session %s", s.id)
-	defer log.Printf("done Serving session %s", s.id)
+	log.Printf("serving session: %s", s.id)
+	defer log.Printf("done serving session: %s", s.id)
 
 	for {
 		e, err := s.Receive()
 		if err != nil {
-			if err == io.EOF {
-				return
+			if !websocket.IsCloseError(err, websocket.CloseNormalClosure) {
+				log.Printf("got error while rx event: %s %s", s.id, err)
 			}
-			if _, ok := err.(*net.OpError); ok {
-				log.Print("Encountered an OpErr, tearing down connection: ", err)
-				return
-			}
-			log.Printf("Encountered an error when trying to receive an event from a websocket connection: %T %s", err, err)
-			continue
+			return
 		}
 		handler, ok := eventHandlers[e.Cmd]
 		if !ok {
-			log.Printf("Received an event with the command '%s' that does not match any of our handlers.", e.Cmd)
-			s.Send(event{
+			log.Printf("received invalid command: %s %s", s.id, e.Cmd)
+			err = s.Send(event{
 				Cmd:       e.Cmd,
 				RequestID: e.RequestID,
 				Error:     invalidCommand,
 			})
+			if err != nil {
+				log.Printf("unable to tx: %s", err)
+			}
 			continue
 		}
-		log.Printf("Handling '%s' event.", e.Cmd)
 		handler.HandleEvent(e, s)
 	}
 }

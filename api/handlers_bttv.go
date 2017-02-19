@@ -18,16 +18,22 @@ func bttvEmojiHandler(e event, s *session) {
 	payload, err := bttv.Emoji(streamerUsername)
 	if err != nil {
 		log.Printf("error getting bttv emoji: %s", err)
-		s.Send(event{
+		err = s.Send(event{
 			Cmd:       e.Cmd,
 			RequestID: e.RequestID,
 			Error:     bttvUnavailable,
 		})
+		if err != nil {
+			log.Printf("unable to tx: %s", err)
+		}
 		return
 	}
-	s.Send(event{
+	err = s.Send(event{
 		Cmd:       e.Cmd,
 		RequestID: e.RequestID,
 		Payload:   payload,
 	})
+	if err != nil {
+		log.Printf("unable to tx: %s", err)
+	}
 }

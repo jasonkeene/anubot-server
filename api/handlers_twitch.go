@@ -14,11 +14,14 @@ import (
 func twitchOauthStartHandler(e event, s *session) {
 	tus, ok := e.Payload.(string)
 	if !ok {
-		s.Send(event{
+		err := s.Send(event{
 			Cmd:       "twitch-oauth-start",
 			RequestID: e.RequestID,
 			Error:     invalidPayload,
 		})
+		if err != nil {
+			log.Printf("unable to tx: %s", err)
+		}
 		return
 	}
 
@@ -31,47 +34,62 @@ func twitchOauthStartHandler(e event, s *session) {
 	case "bot":
 		tu = store.Bot
 		if !s.Store().TwitchStreamerAuthenticated(userID) {
-			s.Send(event{
+			err := s.Send(event{
 				Cmd:       "twitch-oauth-start",
 				RequestID: e.RequestID,
 				Error:     twitchOauthStartOrderError,
 			})
+			if err != nil {
+				log.Printf("unable to tx: %s", err)
+			}
 			return
 		}
 	default:
-		s.Send(event{
+		err := s.Send(event{
 			Cmd:       "twitch-oauth-start",
 			RequestID: e.RequestID,
 			Error:     invalidPayload,
 		})
+		if err != nil {
+			log.Printf("unable to tx: %s", err)
+		}
 		return
 	}
 
 	url, err := oauth.URL(s.TwitchOauthClientID(), userID, tu, s.Store())
 	if err != nil {
 		log.Printf("got an err trying to create oauth url: %s", err)
-		s.Send(event{
+		err = s.Send(event{
 			Cmd:       "twitch-oauth-start",
 			RequestID: e.RequestID,
 			Error:     unknownError,
 		})
+		if err != nil {
+			log.Printf("unable to tx: %s", err)
+		}
 		return
 	}
 
-	s.Send(event{
+	err = s.Send(event{
 		Cmd:       "twitch-oauth-start",
 		RequestID: e.RequestID,
 		Payload:   url,
 	})
+	if err != nil {
+		log.Printf("unable to tx: %s", err)
+	}
 }
 
 // twitchClearAuthHandler clears all auth data for the user.
 func twitchClearAuthHandler(e event, s *session) {
 	s.Store().TwitchClearAuth(s.userID)
-	s.Send(event{
+	err := s.Send(event{
 		Cmd:       "twitch-clear-auth",
 		RequestID: e.RequestID,
 	})
+	if err != nil {
+		log.Printf("unable to tx: %s", err)
+	}
 }
 
 // twitchUserDetailsHandler provides information on the Twitch streamer and
@@ -91,7 +109,12 @@ func twitchUserDetailsHandler(e event, s *session) {
 		RequestID: e.RequestID,
 		Payload:   p,
 	}
-	defer s.Send(resp)
+	defer func() {
+		err := s.Send(resp)
+		if err != nil {
+			log.Printf("unable to tx: %s", err)
+		}
+	}()
 
 	streamerAuthenticated := s.Store().TwitchStreamerAuthenticated(s.userID)
 	if !streamerAuthenticated {
@@ -120,11 +143,14 @@ func twitchUserDetailsHandler(e event, s *session) {
 
 // twitchGamesHandler returns the available games.
 func twitchGamesHandler(e event, s *session) {
-	s.Send(event{
+	err := s.Send(event{
 		Cmd:       e.Cmd,
 		RequestID: e.RequestID,
 		Payload:   s.api.twitchClient.Games(),
 	})
+	if err != nil {
+		log.Printf("unable to tx: %s", err)
+	}
 }
 
 // twitchStreamMessagesHandler writes chat messages to websocket connection.
@@ -142,7 +168,7 @@ func twitchStreamMessagesHandler(e event, s *session) {
 				continue
 			}
 
-			s.Send(event{
+			err = s.Send(event{
 				Cmd: "chat-message",
 				Payload: message{
 					Type: msg.Type,
@@ -156,6 +182,9 @@ func twitchStreamMessagesHandler(e event, s *session) {
 					},
 				},
 			})
+			if err != nil {
+				log.Printf("unable to tx: %s", err)
+			}
 		}
 	}
 
@@ -167,7 +196,7 @@ func twitchStreamMessagesHandler(e event, s *session) {
 		"twitch:"+streamerUsername,
 		"twitch:"+botUsername,
 		s.api.subEndpoints,
-		s.ws,
+		s,
 	)
 	if err != nil {
 		log.Printf("unable to stream messages: %s", err)
@@ -181,26 +210,35 @@ func twitchStreamMessagesHandler(e event, s *session) {
 func twitchSendMessageHandler(e event, s *session) {
 	data, ok := e.Payload.(map[string]interface{})
 	if !ok {
-		s.Send(event{
+		err := s.Send(event{
 			Cmd:   e.Cmd,
 			Error: invalidPayload,
 		})
+		if err != nil {
+			log.Printf("unable to tx: %s", err)
+		}
 		return
 	}
 	userType, ok := data["user_type"].(string)
 	if !ok {
-		s.Send(event{
+		err := s.Send(event{
 			Cmd:   e.Cmd,
 			Error: invalidPayload,
 		})
+		if err != nil {
+			log.Printf("unable to tx: %s", err)
+		}
 		return
 	}
 	message, ok := data["message"].(string)
 	if !ok {
-		s.Send(event{
+		err := s.Send(event{
 			Cmd:   e.Cmd,
 			Error: invalidPayload,
 		})
+		if err != nil {
+			log.Printf("unable to tx: %s", err)
+		}
 		return
 	}
 
@@ -212,10 +250,13 @@ func twitchSendMessageHandler(e event, s *session) {
 	case "bot":
 		username, password, _ = s.Store().TwitchBotCredentials(s.userID)
 	default:
-		s.Send(event{
+		err := s.Send(event{
 			Cmd:   e.Cmd,
 			Error: invalidTwitchUserType,
 		})
+		if err != nil {
+			log.Printf("unable to tx: %s", err)
+		}
 		return
 	}
 	s.api.streamManager.ConnectTwitch(username, "oauth:"+password, "#"+username)
@@ -233,26 +274,35 @@ func twitchSendMessageHandler(e event, s *session) {
 func twitchUpdateChatDescriptionHandler(e event, s *session) {
 	payload, ok := e.Payload.(map[string]interface{})
 	if !ok {
-		s.Send(event{
+		err := s.Send(event{
 			Cmd:   e.Cmd,
 			Error: invalidPayload,
 		})
+		if err != nil {
+			log.Printf("unable to tx: %s", err)
+		}
 		return
 	}
 	status, ok := payload["status"].(string)
 	if !ok {
-		s.Send(event{
+		err := s.Send(event{
 			Cmd:   e.Cmd,
 			Error: invalidPayload,
 		})
+		if err != nil {
+			log.Printf("unable to tx: %s", err)
+		}
 		return
 	}
 	game, ok := payload["game"].(string)
 	if !ok {
-		s.Send(event{
+		err := s.Send(event{
 			Cmd:   e.Cmd,
 			Error: invalidPayload,
 		})
+		if err != nil {
+			log.Printf("unable to tx: %s", err)
+		}
 		return
 	}
 
@@ -260,10 +310,13 @@ func twitchUpdateChatDescriptionHandler(e event, s *session) {
 	err := s.api.twitchClient.UpdateDescription(status, game, user, pass)
 	if err != nil {
 		log.Println("unable to update chat description, got error:", err)
-		s.Send(event{
+		err := s.Send(event{
 			Cmd:   e.Cmd,
 			Error: unknownError,
 		})
+		if err != nil {
+			log.Printf("unable to tx: %s", err)
+		}
 	}
 }
 
@@ -276,10 +329,13 @@ func twitchAuthenticateWrapper(f handlerFunc) handlerFunc {
 			f(e, s)
 			return
 		}
-		s.Send(event{
+		err := s.Send(event{
 			Cmd:       e.Cmd,
 			RequestID: e.RequestID,
 			Error:     twitchAuthenticationError,
 		})
+		if err != nil {
+			log.Printf("unable to tx: %s", err)
+		}
 	}
 }

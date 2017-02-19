@@ -1,9 +1,10 @@
 package api
 
 import (
-	"log"
+	"encoding/json"
+	"fmt"
 
-	"golang.org/x/net/websocket"
+	"github.com/gorilla/websocket"
 )
 
 // session stores objects handlers need when responding to events.
@@ -17,17 +18,25 @@ type session struct {
 }
 
 // Send sends an event to the user over the websocket connection.
-func (s *session) Send(e event) {
-	err := websocket.JSON.Send(s.ws, e)
+func (s *session) Send(e event) error {
+	message, err := json.Marshal(e)
 	if err != nil {
-		log.Printf("got err while sending event to ws client: %s", err)
+		return err
 	}
+	return s.ws.WriteMessage(websocket.TextMessage, message)
 }
 
 // Receive returns the next event from the websocket connection.
 func (s *session) Receive() (event, error) {
 	var e event
-	err := websocket.JSON.Receive(s.ws, &e)
+	mt, message, err := s.ws.ReadMessage()
+	if err != nil {
+		return e, err
+	}
+	if mt != websocket.TextMessage {
+		return e, fmt.Errorf("read non-text message from websocket conn: %d", mt)
+	}
+	err = json.Unmarshal(message, &e)
 	return e, err
 }
 

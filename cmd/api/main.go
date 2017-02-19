@@ -5,8 +5,6 @@ import (
 	"log"
 	"net/http"
 
-	"golang.org/x/net/websocket"
-
 	"github.com/fluffle/goirc/logging/golog"
 	"github.com/spf13/viper"
 
@@ -77,7 +75,7 @@ func main() {
 		twitchClient,
 		v.GetString("twitch_oauth_client_id"),
 	)
-	mux.Handle("/api", websocket.Handler(api.Serve))
+	mux.Handle("/api", api)
 
 	// wire up oauth handler
 	mux.Handle("/twitch_oauth/done", oauth.NewDoneHandler(

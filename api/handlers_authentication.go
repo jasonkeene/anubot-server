@@ -1,6 +1,10 @@
 package api
 
-import "github.com/jasonkeene/anubot-server/store"
+import (
+	"log"
+
+	"github.com/jasonkeene/anubot-server/store"
+)
 
 // registerHandler accepts registration information and authenticates the
 // session.
@@ -12,7 +16,10 @@ func registerHandler(e event, s *session) {
 		Error:     unknownError,
 	}
 	defer func() {
-		s.Send(resp)
+		err := s.Send(resp)
+		if err != nil {
+			log.Printf("unable to tx: %s", err)
+		}
 	}()
 
 	// validate event
@@ -62,7 +69,10 @@ func authenticateHandler(e event, s *session) {
 		Error:     unknownError,
 	}
 	defer func() {
-		s.Send(resp)
+		err := s.Send(resp)
+		if err != nil {
+			log.Printf("unable to tx: %s", err)
+		}
 	}()
 
 	// validate event
@@ -105,10 +115,13 @@ func authenticateHandler(e event, s *session) {
 // logoutHandler clears the authentication for the session.
 func logoutHandler(e event, s *session) {
 	s.Logout()
-	s.Send(event{
+	err := s.Send(event{
 		Cmd:       "logout",
 		RequestID: e.RequestID,
 	})
+	if err != nil {
+		log.Printf("unable to tx: %s", err)
+	}
 }
 
 // authenticateWrapper wraps a handler and makes sure the session is
@@ -120,11 +133,14 @@ func authenticateWrapper(f handlerFunc) handlerFunc {
 			f(e, s)
 			return
 		}
-		s.Send(event{
+		err := s.Send(event{
 			Cmd:       e.Cmd,
 			RequestID: e.RequestID,
 			Error:     authenticationError,
 		})
+		if err != nil {
+			log.Printf("unable to tx: %s", err)
+		}
 	}
 }
 

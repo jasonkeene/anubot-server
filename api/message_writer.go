@@ -9,7 +9,6 @@ import (
 	"github.com/jasonkeene/anubot-server/stream"
 
 	"github.com/pebbe/zmq4"
-	"golang.org/x/net/websocket"
 )
 
 type message struct {
@@ -33,7 +32,7 @@ type messageWriter struct {
 	streamerUsername string
 	streamerSub      *zmq4.Socket
 	botSub           *zmq4.Socket
-	ws               *websocket.Conn
+	s                *session
 }
 
 func newMessageWriter(
@@ -41,7 +40,7 @@ func newMessageWriter(
 	streamerTopic string,
 	botTopic string,
 	subEndpoints []string,
-	ws *websocket.Conn,
+	s *session,
 ) (*messageWriter, error) {
 	streamerSub, err := zmq4.NewSocket(zmq4.SUB)
 	if err != nil {
@@ -76,12 +75,12 @@ func newMessageWriter(
 		streamerUsername: streamerUsername,
 		streamerSub:      streamerSub,
 		botSub:           botSub,
-		ws:               ws,
+		s:                s,
 	}, nil
 }
 
 // startStreamer reads messages off of the streamer sub socket and writes them
-// to the ws conn.
+// to the session's ws conn.
 func (mw *messageWriter) startStreamer() {
 	for {
 		ms, err := readMessage(mw.streamerSub)
@@ -97,8 +96,8 @@ func (mw *messageWriter) startStreamer() {
 	}
 }
 
-// startBot reads messages off of the bot sub socket and writes them  to the
-// ws conn.
+// startBot reads messages off of the bot sub socket and writes them to the
+// session's ws conn.
 func (mw *messageWriter) startBot() {
 	for {
 		ms, err := readMessage(mw.botSub)
@@ -168,5 +167,5 @@ func (mw *messageWriter) writeMessage(ms *stream.RXMessage) error {
 		Cmd:     "chat-message",
 		Payload: p,
 	}
-	return websocket.JSON.Send(mw.ws, e)
+	return mw.s.Send(e)
 }
