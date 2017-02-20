@@ -12,6 +12,7 @@ import (
 	"github.com/aymerick/raymond"
 )
 
+// BTTV is the client that connects to BTTV's API.
 type BTTV struct {
 	baseURL string
 }
@@ -27,6 +28,7 @@ func WithBaseURL(url string) Option {
 	}
 }
 
+// New creates a new BTTV client.
 func New(opts ...Option) *BTTV {
 	b := &BTTV{
 		baseURL: "https://api.betterttv.net/2/",

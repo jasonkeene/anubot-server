@@ -88,7 +88,10 @@ func setupClient(url string) (client, func()) {
 	return client{
 			Conn: c,
 		}, func() {
-			c.Close()
+			err := c.Close()
+			if err != nil {
+				panic(err)
+			}
 		}
 }
 

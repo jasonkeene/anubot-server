@@ -9,7 +9,6 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/jasonkeene/anubot-server/api"
-	"github.com/jasonkeene/anubot-server/bot"
 	"github.com/jasonkeene/anubot-server/dispatch"
 	"github.com/jasonkeene/anubot-server/store"
 	"github.com/jasonkeene/anubot-server/store/bolt"
@@ -61,15 +60,17 @@ func main() {
 	go puller.Start()
 
 	// create bot manager
-	botManager := bot.NewManager()
+	// TODO: consider who is responsible for making sure a given user's bot is
+	// running
+	//botManager := bot.NewManager()
 
 	// create stream manager
 	streamManager := stream.NewManager(twitchClient)
 
 	// setup websocket API server
 	mux := http.NewServeMux()
+
 	api := api.New(
-		botManager,
 		streamManager,
 		st,
 		twitchClient,

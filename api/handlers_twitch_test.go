@@ -378,7 +378,7 @@ func TestTwitchStreamMessages(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer func() {
-			recover()
+			_ = recover()
 			close(done)
 		}()
 		client.ReadEvent()

@@ -23,7 +23,9 @@ func TestItRepondsToValidMessages(t *testing.T) {
 	url := strings.Replace(server.URL, "http://", "ws://", 1)
 	c, _, err := websocket.DefaultDialer.Dial(url, nil)
 	expect(err).To.Be.Nil()
-	defer c.Close()
+	defer func() {
+		_ = c.Close()
+	}()
 
 	ping := []byte(`{"cmd":"ping"}`)
 	err = c.WriteMessage(websocket.TextMessage, ping)
@@ -47,7 +49,9 @@ func TestItRepondsToInvalidMessages(t *testing.T) {
 	url := strings.Replace(server.URL, "http://", "ws://", 1)
 	c, _, err := websocket.DefaultDialer.Dial(url, nil)
 	expect(err).To.Be.Nil()
-	defer c.Close()
+	defer func() {
+		_ = c.Close()
+	}()
 
 	badMessage := []byte(`{"cmd":"foobar"}`)
 	err = c.WriteMessage(websocket.TextMessage, badMessage)
@@ -87,7 +91,9 @@ func TestItPingsPeriodically(t *testing.T) {
 	url := strings.Replace(server.URL, "http://", "ws://", 1)
 	c, _, err := websocket.DefaultDialer.Dial(url, nil)
 	expect(err).To.Be.Nil()
-	defer c.Close()
+	defer func() {
+		_ = c.Close()
+	}()
 
 	gotPing := make(chan struct{})
 	var once sync.Once
