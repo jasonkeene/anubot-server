@@ -12,16 +12,12 @@ import (
 // The streamer user is required to be the first to begin the oauth flow,
 // followed by the bot user.
 func twitchOauthStartHandler(e event, s *session) {
+	resp, send := setup(e, s)
+	defer send()
+
 	tus, ok := e.Payload.(string)
 	if !ok {
-		err := s.Send(event{
-			Cmd:       "twitch-oauth-start",
-			RequestID: e.RequestID,
-			Error:     invalidPayload,
-		})
-		if err != nil {
-			log.Printf("unable to tx: %s", err)
-		}
+		resp.Error = invalidPayload
 		return
 	}
 
@@ -35,88 +31,45 @@ func twitchOauthStartHandler(e event, s *session) {
 		tu = store.Bot
 		authenticated, err := s.Store().TwitchStreamerAuthenticated(userID)
 		if err != nil {
-			err := s.Send(event{
-				Cmd:       "twitch-oauth-start",
-				RequestID: e.RequestID,
-				Error:     unknownError,
-			})
-			if err != nil {
-				log.Printf("unable to tx: %s", err)
-			}
 			return
 		}
 		if !authenticated {
-			err := s.Send(event{
-				Cmd:       "twitch-oauth-start",
-				RequestID: e.RequestID,
-				Error:     twitchOauthStartOrderError,
-			})
-			if err != nil {
-				log.Printf("unable to tx: %s", err)
-			}
+			resp.Error = twitchOauthStartOrderError
 			return
 		}
 	default:
-		err := s.Send(event{
-			Cmd:       "twitch-oauth-start",
-			RequestID: e.RequestID,
-			Error:     invalidPayload,
-		})
-		if err != nil {
-			log.Printf("unable to tx: %s", err)
-		}
+		resp.Error = invalidPayload
 		return
 	}
 
 	url, err := oauth.URL(s.TwitchOauthClientID(), userID, tu, s.Store())
 	if err != nil {
 		log.Printf("got an err trying to create oauth url: %s", err)
-		err = s.Send(event{
-			Cmd:       "twitch-oauth-start",
-			RequestID: e.RequestID,
-			Error:     unknownError,
-		})
-		if err != nil {
-			log.Printf("unable to tx: %s", err)
-		}
 		return
 	}
 
-	err = s.Send(event{
-		Cmd:       "twitch-oauth-start",
-		RequestID: e.RequestID,
-		Payload:   url,
-	})
-	if err != nil {
-		log.Printf("unable to tx: %s", err)
-	}
+	resp.Payload = url
+	resp.Error = nil
 }
 
 // twitchClearAuthHandler clears all auth data for the user.
 func twitchClearAuthHandler(e event, s *session) {
+	resp, send := setup(e, s)
+	defer send()
+
 	err := s.Store().TwitchClearAuth(s.userID)
 	if err != nil {
-		err = s.Send(event{
-			Cmd:       "twitch-clear-auth",
-			RequestID: e.RequestID,
-			Error:     unknownError,
-		})
-		if err != nil {
-			log.Printf("unable to tx: %s", err)
-		}
+		return
 	}
-	err = s.Send(event{
-		Cmd:       "twitch-clear-auth",
-		RequestID: e.RequestID,
-	})
-	if err != nil {
-		log.Printf("unable to tx: %s", err)
-	}
+	resp.Error = nil
 }
 
 // twitchUserDetailsHandler provides information on the Twitch streamer and
 // bot users.
 func twitchUserDetailsHandler(e event, s *session) {
+	resp, send := setup(e, s)
+	defer send()
+
 	p := map[string]interface{}{
 		"streamer_authenticated": false,
 		"streamer_username":      "",
@@ -126,17 +79,6 @@ func twitchUserDetailsHandler(e event, s *session) {
 		"bot_authenticated": false,
 		"bot_username":      "",
 	}
-	resp := event{
-		Cmd:       "twitch-user-details",
-		RequestID: e.RequestID,
-		Error:     unknownError,
-	}
-	defer func() {
-		err := s.Send(resp)
-		if err != nil {
-			log.Printf("unable to tx: %s", err)
-		}
-	}()
 
 	streamerAuthenticated, err := s.Store().TwitchStreamerAuthenticated(s.userID)
 	if err != nil {
@@ -153,8 +95,7 @@ func twitchUserDetailsHandler(e event, s *session) {
 	}
 	status, game, err := s.api.twitchClient.StreamInfo(streamerUsername)
 	if err != nil {
-		log.Printf("unable to fetch stream info for user %s: %s",
-			streamerUsername, err)
+		log.Printf("unable to fetch stream info for user: %s: %s", streamerUsername, err)
 		return
 	}
 	p["streamer_authenticated"] = streamerAuthenticated
@@ -180,18 +121,16 @@ func twitchUserDetailsHandler(e event, s *session) {
 	p["bot_authenticated"] = botAuthenticated
 	p["bot_username"] = botUsername
 	resp.Payload = p
+	resp.Error = nil
 }
 
 // twitchGamesHandler returns the available games.
 func twitchGamesHandler(e event, s *session) {
-	err := s.Send(event{
-		Cmd:       e.Cmd,
-		RequestID: e.RequestID,
-		Payload:   s.api.twitchClient.Games(),
-	})
-	if err != nil {
-		log.Printf("unable to tx: %s", err)
-	}
+	resp, send := setup(e, s)
+	defer send()
+
+	resp.Payload = s.api.twitchClient.Games()
+	resp.Error = nil
 }
 
 // twitchStreamMessagesHandler writes chat messages to websocket connection.
@@ -257,37 +196,22 @@ func twitchStreamMessagesHandler(e event, s *session) {
 
 // twitchSendMessageHandler accepts messages to send via Twitch chat.
 func twitchSendMessageHandler(e event, s *session) {
+	resp, send := setup(e, s)
+	defer send()
+
 	data, ok := e.Payload.(map[string]interface{})
 	if !ok {
-		err := s.Send(event{
-			Cmd:   e.Cmd,
-			Error: invalidPayload,
-		})
-		if err != nil {
-			log.Printf("unable to tx: %s", err)
-		}
+		resp.Error = invalidPayload
 		return
 	}
 	userType, ok := data["user_type"].(string)
 	if !ok {
-		err := s.Send(event{
-			Cmd:   e.Cmd,
-			Error: invalidPayload,
-		})
-		if err != nil {
-			log.Printf("unable to tx: %s", err)
-		}
+		resp.Error = invalidPayload
 		return
 	}
 	message, ok := data["message"].(string)
 	if !ok {
-		err := s.Send(event{
-			Cmd:   e.Cmd,
-			Error: invalidPayload,
-		})
-		if err != nil {
-			log.Printf("unable to tx: %s", err)
-		}
+		resp.Error = invalidPayload
 		return
 	}
 
@@ -309,16 +233,10 @@ func twitchSendMessageHandler(e event, s *session) {
 	case "bot":
 		username, password = botUsername, botPassword
 	default:
-		err := s.Send(event{
-			Cmd:   e.Cmd,
-			Error: invalidTwitchUserType,
-		})
-		if err != nil {
-			log.Printf("unable to tx: %s", err)
-		}
+		resp.Error = invalidTwitchUserType
 		return
 	}
-	s.api.streamManager.ConnectTwitch(username, "oauth:"+password, "#"+username)
+	s.api.streamManager.ConnectTwitch(username, "oauth:"+password, "#"+streamerUsername)
 	s.api.streamManager.Send(stream.TXMessage{
 		Type: stream.Twitch,
 		Twitch: &stream.TXTwitch{
@@ -327,41 +245,27 @@ func twitchSendMessageHandler(e event, s *session) {
 			Message:  message,
 		},
 	})
+	resp.Error = nil
 }
 
 // twitchUpdateChatDescriptionHandler updates the chat description for Twitch.
 func twitchUpdateChatDescriptionHandler(e event, s *session) {
+	resp, send := setup(e, s)
+	defer send()
+
 	payload, ok := e.Payload.(map[string]interface{})
 	if !ok {
-		err := s.Send(event{
-			Cmd:   e.Cmd,
-			Error: invalidPayload,
-		})
-		if err != nil {
-			log.Printf("unable to tx: %s", err)
-		}
+		resp.Error = invalidPayload
 		return
 	}
 	status, ok := payload["status"].(string)
 	if !ok {
-		err := s.Send(event{
-			Cmd:   e.Cmd,
-			Error: invalidPayload,
-		})
-		if err != nil {
-			log.Printf("unable to tx: %s", err)
-		}
+		resp.Error = invalidPayload
 		return
 	}
 	game, ok := payload["game"].(string)
 	if !ok {
-		err := s.Send(event{
-			Cmd:   e.Cmd,
-			Error: invalidPayload,
-		})
-		if err != nil {
-			log.Printf("unable to tx: %s", err)
-		}
+		resp.Error = invalidPayload
 		return
 	}
 
@@ -374,19 +278,14 @@ func twitchUpdateChatDescriptionHandler(e event, s *session) {
 	err = s.api.twitchClient.UpdateDescription(status, game, user, pass)
 	if err != nil {
 		log.Println("unable to update chat description, got error:", err)
-		err := s.Send(event{
-			Cmd:   e.Cmd,
-			Error: unknownError,
-		})
-		if err != nil {
-			log.Printf("unable to tx: %s", err)
-		}
+		return
 	}
+	resp.Error = nil
 }
 
 // twitchAuthenticateWrapper wraps a handler and makes sure the user attached
 // to the session is properly authenticated with twitch.
-func twitchAuthenticateWrapper(f handlerFunc) handlerFunc {
+func twitchAuthenticateWrapper(f eventHandler) eventHandler {
 	return func(e event, s *session) {
 		userID, _ := s.Authenticated()
 		authenticated, err := s.Store().TwitchAuthenticated(userID)

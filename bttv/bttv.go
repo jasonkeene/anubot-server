@@ -12,7 +12,47 @@ import (
 	"github.com/aymerick/raymond"
 )
 
-const baseURL = "https://api.betterttv.net/2/"
+type BTTV struct {
+	baseURL string
+}
+
+// Option is used to configure the BTTV client.
+type Option func(*BTTV)
+
+// WithBaseURL allows you to override the default URL that is used to make
+// requests to the BTTV API.
+func WithBaseURL(url string) Option {
+	return func(b *BTTV) {
+		b.baseURL = url
+	}
+}
+
+func New(opts ...Option) *BTTV {
+	b := &BTTV{
+		baseURL: "https://api.betterttv.net/2/",
+	}
+	for _, opt := range opts {
+		opt(b)
+	}
+	return b
+}
+
+// Emoji returns the current BTTV emoji. Optionally, you may provide a channel
+// name and it will get the emoji specific for that channel.
+func (b *BTTV) Emoji(channel string) (map[string]string, error) {
+	result := make(map[string]string)
+
+	err := b.requestEmoji("emotes", result)
+	if err != nil {
+		return nil, err
+	}
+
+	if channel != "" {
+		_ = b.requestEmoji("channels/"+channel, result)
+	}
+
+	return result, nil
+}
 
 var httpClient = &http.Client{
 	Timeout: time.Second * 5,
@@ -26,25 +66,8 @@ type apiResponse struct {
 	URLTemplate string `json:"urlTemplate"`
 }
 
-// Emoji returns the current BTTV emoji. Optionally, you may provide a channel
-// name and it will get the emoji specific for that channel.
-func Emoji(channel string) (map[string]string, error) {
-	result := make(map[string]string)
-
-	err := requestEmoji("emotes", result)
-	if err != nil {
-		return nil, err
-	}
-
-	if channel != "" {
-		_ = requestEmoji("channels/"+channel, result)
-	}
-
-	return result, nil
-}
-
-func requestEmoji(path string, result map[string]string) error {
-	resp, err := httpClient.Get(baseURL + path)
+func (b *BTTV) requestEmoji(path string, result map[string]string) error {
+	resp, err := httpClient.Get(b.baseURL + path)
 	if err != nil {
 		return err
 	}

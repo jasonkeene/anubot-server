@@ -8,13 +8,13 @@ import (
 	"github.com/gorilla/websocket"
 	uuid "github.com/satori/go.uuid"
 
-	"github.com/jasonkeene/anubot-server/bot"
+	"github.com/jasonkeene/anubot-server/bttv"
+	"github.com/jasonkeene/anubot-server/store"
 	"github.com/jasonkeene/anubot-server/stream"
 	"github.com/jasonkeene/anubot-server/twitch"
-	"github.com/jasonkeene/anubot-server/twitch/oauth"
 )
 
-// Store is the object the Server uses to persist data.
+// Store is used to persist data.
 type Store interface {
 	RegisterUser(username, password string) (userID string, err error)
 	AuthenticateUser(username, password string) (userID string, authenticated bool, err error)
@@ -25,18 +25,38 @@ type Store interface {
 	TwitchBotAuthenticated(userID string) (authenticated bool, err error)
 	TwitchBotCredentials(userID string) (username, password string, twitchUserID int, err error)
 	FetchRecentMessages(userID string) (msgs []stream.RXMessage, err error)
+	CreateOauthNonce(userID string, tu store.TwitchUser) (nonce string, err error)
+	OauthNonceExists(nonce string) (exists bool, err error)
+	FinishOauthNonce(nonce, username string, userID int, od store.OauthData) (err error)
+}
 
-	oauth.NonceStore
+// StreamManager is used to connect and send to third party chat.
+type StreamManager interface {
+	ConnectTwitch(user, pass, channel string)
+	Send(msg stream.TXMessage)
+}
+
+// TwitchClient is used to communicate with Twitch's API.
+type TwitchClient interface {
+	StreamInfo(channel string) (status, game string, err error)
+	Games() (games []twitch.Game)
+	UpdateDescription(status, game, channel, token string) (err error)
+}
+
+// BTTVClient is used to communicate with BTTV's API.
+type BTTVClient interface {
+	Emoji(channel string) (emoji map[string]string, err error)
 }
 
 // Server responds to websocket events sent from the client.
 type Server struct {
-	botManager          *bot.Manager
-	streamManager       *stream.Manager
+	streamManager       StreamManager
 	subEndpoints        []string
 	store               Store
-	twitchClient        *twitch.API
+	twitchClient        TwitchClient
 	twitchOauthClientID string
+	bttvClient          BTTVClient
+	pingInterval        time.Duration
 }
 
 // Option is used to configure a Server.
@@ -50,22 +70,35 @@ func WithSubEndpoints(endpoints []string) Option {
 	}
 }
 
+// WithPingInterval allows you to configure how fast to send pings.
+func WithPingInterval(pingInterval time.Duration) Option {
+	return func(s *Server) {
+		s.pingInterval = pingInterval
+	}
+}
+
+// WithBTTVClient allows you to override the default BTTV API client.
+func WithBTTVClient(b BTTVClient) Option {
+	return func(s *Server) {
+		s.bttvClient = b
+	}
+}
+
 // New creates a new Server.
 func New(
-	botManager *bot.Manager,
-	streamManager *stream.Manager,
+	streamManager StreamManager,
 	store Store,
-	twitchClient *twitch.API,
+	twitchClient TwitchClient,
 	twitchOauthClientID string,
 	opts ...Option,
 ) *Server {
 	s := &Server{
-		botManager:          botManager,
 		streamManager:       streamManager,
 		subEndpoints:        []string{"inproc://dispatch-pub"},
 		store:               store,
 		twitchClient:        twitchClient,
 		twitchOauthClientID: twitchOauthClientID,
+		bttvClient:          bttv.New(),
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -88,7 +121,7 @@ func (api *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			log.Printf("got error while closing ws conn: %s", err)
 		}
 	}()
-	go writePings(ws)
+	go api.writePings(ws)
 
 	s := &session{
 		id:  uuid.NewV4().String(),
@@ -119,17 +152,17 @@ func (api *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 			continue
 		}
-		handler.HandleEvent(e, s)
+		handler(e, s)
 	}
 }
 
-func writePings(ws *websocket.Conn) {
+func (api *Server) writePings(ws *websocket.Conn) {
 	for {
-		time.Sleep(5 * time.Second)
 		err := ws.WriteControl(websocket.PingMessage, nil, time.Now().Add(time.Second))
 		if err != nil {
 			log.Print("unable to write ping control message: ", err)
 			return
 		}
+		time.Sleep(api.pingInterval)
 	}
 }

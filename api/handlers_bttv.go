@@ -1,26 +1,17 @@
 package api
 
-import (
-	"log"
-
-	"github.com/jasonkeene/anubot-server/bttv"
-)
+import "log"
 
 // bttvEmojiHandler returns emoji from BTTV. If the user has authenticated
 // their streamer user with Twitch it will also include channel specific
 // emoji.
 func bttvEmojiHandler(e event, s *session) {
+	resp, send := setup(e, s)
+	defer send()
+
 	streamerAuthenticated, err := s.Store().TwitchStreamerAuthenticated(s.userID)
 	if err != nil {
 		log.Printf("error authenticating twitch streamer: %s", err)
-		err = s.Send(event{
-			Cmd:       e.Cmd,
-			RequestID: e.RequestID,
-			Error:     unknownError,
-		})
-		if err != nil {
-			log.Printf("unable to tx: %s", err)
-		}
 		return
 	}
 
@@ -33,26 +24,13 @@ func bttvEmojiHandler(e event, s *session) {
 		}
 	}
 
-	payload, err := bttv.Emoji(streamerUsername)
+	payload, err := s.api.bttvClient.Emoji(streamerUsername)
 	if err != nil {
 		log.Printf("error getting bttv emoji: %s", err)
-		err = s.Send(event{
-			Cmd:       e.Cmd,
-			RequestID: e.RequestID,
-			Error:     bttvUnavailable,
-		})
-		if err != nil {
-			log.Printf("unable to tx: %s", err)
-		}
+		resp.Error = bttvUnavailable
 		return
 	}
 
-	err = s.Send(event{
-		Cmd:       e.Cmd,
-		RequestID: e.RequestID,
-		Payload:   payload,
-	})
-	if err != nil {
-		log.Printf("unable to tx: %s", err)
-	}
+	resp.Payload = payload
+	resp.Error = nil
 }

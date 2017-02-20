@@ -1,30 +1,31 @@
 package api
 
-import "log"
+import (
+	"sort"
+)
 
 // pingHandler responds with pong data frame used for testing connectivity.
 func pingHandler(e event, s *session) {
-	err := s.Send(event{
-		Cmd:       "pong",
-		RequestID: e.RequestID,
-	})
-	if err != nil {
-		log.Printf("unable to tx: %s", err)
-	}
+	resp, send := setup(e, s)
+	defer send()
+
+	resp.Cmd = "pong"
+	resp.Error = nil
 }
 
 // methodsHandler responds with a list of methods the API supports.
 func methodsHandler(e event, s *session) {
-	methods := []string{}
+	resp, send := setup(e, s)
+	defer send()
+
+	methods := make([]string, 0, len(eventHandlers))
 	for m := range eventHandlers {
 		methods = append(methods, m)
 	}
-	err := s.Send(event{
-		Cmd:       "methods",
-		RequestID: e.RequestID,
-		Payload:   methods,
+	sort.Slice(methods, func(i, j int) bool {
+		return methods[i] < methods[j]
 	})
-	if err != nil {
-		log.Printf("unable to tx: %s", err)
-	}
+
+	resp.Payload = methods
+	resp.Error = nil
 }
