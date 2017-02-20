@@ -99,6 +99,7 @@ func New(
 		twitchClient:        twitchClient,
 		twitchOauthClientID: twitchOauthClientID,
 		bttvClient:          bttv.New(),
+		pingInterval:        5 * time.Second,
 	}
 	for _, opt := range opts {
 		opt(s)
