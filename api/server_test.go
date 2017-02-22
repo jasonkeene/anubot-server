@@ -17,7 +17,7 @@ import (
 func TestItRepondsToValidMessages(t *testing.T) {
 	expect := expect.New(t)
 
-	server := httptest.NewServer(api.New(nil, nil, nil, ""))
+	server := httptest.NewServer(api.New(nil, nil, nil, nil, ""))
 	defer server.Close()
 
 	url := strings.Replace(server.URL, "http://", "ws://", 1)
@@ -43,7 +43,7 @@ func TestItRepondsToValidMessages(t *testing.T) {
 func TestItRepondsToInvalidMessages(t *testing.T) {
 	expect := expect.New(t)
 
-	server := httptest.NewServer(api.New(nil, nil, nil, ""))
+	server := httptest.NewServer(api.New(nil, nil, nil, nil, ""))
 	defer server.Close()
 
 	url := strings.Replace(server.URL, "http://", "ws://", 1)
@@ -71,7 +71,7 @@ func TestItRepondsToInvalidMessages(t *testing.T) {
 func TestItChecksOriginAndHostMatch(t *testing.T) {
 	expect := expect.New(t)
 
-	server := httptest.NewServer(api.New(nil, nil, nil, ""))
+	server := httptest.NewServer(api.New(nil, nil, nil, nil, ""))
 	defer server.Close()
 
 	url := strings.Replace(server.URL, "http://", "ws://", 1)
@@ -84,7 +84,7 @@ func TestItChecksOriginAndHostMatch(t *testing.T) {
 func TestItPingsPeriodically(t *testing.T) {
 	expect := expect.New(t)
 
-	api := api.New(nil, nil, nil, "", api.WithPingInterval(time.Millisecond))
+	api := api.New(nil, nil, nil, nil, "", api.WithPingInterval(time.Millisecond))
 	server := httptest.NewServer(api)
 	defer server.Close()
 

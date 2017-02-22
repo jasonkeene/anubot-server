@@ -42,12 +42,22 @@ func twitchOauthStartHandler(e event, s *session) {
 		return
 	}
 
-	url, err := oauth.URL(s.TwitchOauthClientID(), userID, tu, s.Store())
+	url, nonce, err := oauth.URL(s.TwitchOauthClientID(), userID, tu, s.Store())
 	if err != nil {
 		log.Printf("got an err trying to create oauth url: %s", err)
 		return
 	}
 
+	s.api.twitchOauthCallbacks.RegisterCompletionCallback(nonce, func() {
+		resp := event{
+			Cmd:     "twitch-oauth-complete",
+			Payload: tus,
+		}
+		err := s.Send(resp)
+		if err != nil {
+			log.Printf("unable to tx: %s", err)
+		}
+	})
 	resp.Payload = url
 	resp.Error = nil
 }
@@ -86,6 +96,8 @@ func twitchUserDetailsHandler(e event, s *session) {
 		return
 	}
 	if !streamerAuthenticated {
+		resp.Payload = p
+		resp.Error = nil
 		return
 	}
 	streamerUsername, _, _, err := s.Store().TwitchStreamerCredentials(s.userID)
@@ -110,6 +122,7 @@ func twitchUserDetailsHandler(e event, s *session) {
 	}
 	if !botAuthenticated {
 		resp.Payload = p
+		resp.Error = nil
 		return
 	}
 

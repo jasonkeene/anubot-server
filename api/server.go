@@ -48,15 +48,22 @@ type BTTVClient interface {
 	Emoji(channel string) (emoji map[string]string, err error)
 }
 
+// OauthCallbackRegistrar registers callbacks that are invoked when the oauth
+// flow for a given nonce is complete.
+type OauthCallbackRegistrar interface {
+	RegisterCompletionCallback(nonce string, f func())
+}
+
 // Server responds to websocket events sent from the client.
 type Server struct {
-	streamManager       StreamManager
-	subEndpoints        []string
-	store               Store
-	twitchClient        TwitchClient
-	twitchOauthClientID string
-	bttvClient          BTTVClient
-	pingInterval        time.Duration
+	streamManager        StreamManager
+	subEndpoints         []string
+	store                Store
+	twitchClient         TwitchClient
+	twitchOauthClientID  string
+	bttvClient           BTTVClient
+	pingInterval         time.Duration
+	twitchOauthCallbacks OauthCallbackRegistrar
 }
 
 // Option is used to configure a Server.
@@ -89,17 +96,19 @@ func New(
 	streamManager StreamManager,
 	store Store,
 	twitchClient TwitchClient,
+	twitchOauthCallbacks OauthCallbackRegistrar,
 	twitchOauthClientID string,
 	opts ...Option,
 ) *Server {
 	s := &Server{
-		streamManager:       streamManager,
-		subEndpoints:        []string{"inproc://dispatch-pub"},
-		store:               store,
-		twitchClient:        twitchClient,
-		twitchOauthClientID: twitchOauthClientID,
-		bttvClient:          bttv.New(),
-		pingInterval:        5 * time.Second,
+		streamManager:        streamManager,
+		subEndpoints:         []string{"inproc://dispatch-pub"},
+		store:                store,
+		twitchClient:         twitchClient,
+		twitchOauthCallbacks: twitchOauthCallbacks,
+		twitchOauthClientID:  twitchOauthClientID,
+		bttvClient:           bttv.New(),
+		pingInterval:         5 * time.Second,
 	}
 	for _, opt := range opts {
 		opt(s)

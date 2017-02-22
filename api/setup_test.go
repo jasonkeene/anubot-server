@@ -52,11 +52,13 @@ func setupServer() (server, func()) {
 	ms := newMockStore()
 	mtc := newMockTwitchClient()
 	mbc := newMockBTTVClient()
+	mcr := newMockOauthCallbackRegistrar()
 	e := endpoint()
 	s := httptest.NewServer(api.New(
 		msm,
 		ms,
 		mtc,
+		mcr,
 		"some-client-id",
 		api.WithBTTVClient(mbc),
 		api.WithSubEndpoints([]string{e}),

@@ -11,6 +11,59 @@ import (
 	"github.com/jasonkeene/anubot-server/twitch"
 )
 
+type mockStreamManager struct {
+	ConnectTwitchCalled chan bool
+	ConnectTwitchInput  struct {
+		User, Pass, Channel chan string
+	}
+	SendCalled chan bool
+	SendInput  struct {
+		Msg chan stream.TXMessage
+	}
+}
+
+func newMockStreamManager() *mockStreamManager {
+	m := &mockStreamManager{}
+	m.ConnectTwitchCalled = make(chan bool, 100)
+	m.ConnectTwitchInput.User = make(chan string, 100)
+	m.ConnectTwitchInput.Pass = make(chan string, 100)
+	m.ConnectTwitchInput.Channel = make(chan string, 100)
+	m.SendCalled = make(chan bool, 100)
+	m.SendInput.Msg = make(chan stream.TXMessage, 100)
+	return m
+}
+func (m *mockStreamManager) ConnectTwitch(user, pass, channel string) {
+	m.ConnectTwitchCalled <- true
+	m.ConnectTwitchInput.User <- user
+	m.ConnectTwitchInput.Pass <- pass
+	m.ConnectTwitchInput.Channel <- channel
+}
+func (m *mockStreamManager) Send(msg stream.TXMessage) {
+	m.SendCalled <- true
+	m.SendInput.Msg <- msg
+}
+
+type mockOauthCallbackRegistrar struct {
+	RegisterCompletionCallbackCalled chan bool
+	RegisterCompletionCallbackInput  struct {
+		Nonce chan string
+		F     chan func()
+	}
+}
+
+func newMockOauthCallbackRegistrar() *mockOauthCallbackRegistrar {
+	m := &mockOauthCallbackRegistrar{}
+	m.RegisterCompletionCallbackCalled = make(chan bool, 100)
+	m.RegisterCompletionCallbackInput.Nonce = make(chan string, 100)
+	m.RegisterCompletionCallbackInput.F = make(chan func(), 100)
+	return m
+}
+func (m *mockOauthCallbackRegistrar) RegisterCompletionCallback(nonce string, f func()) {
+	m.RegisterCompletionCallbackCalled <- true
+	m.RegisterCompletionCallbackInput.Nonce <- nonce
+	m.RegisterCompletionCallbackInput.F <- f
+}
+
 type mockStore struct {
 	RegisterUserCalled chan bool
 	RegisterUserInput  struct {
@@ -297,38 +350,6 @@ func (m *mockTwitchClient) UpdateDescription(status, game, channel, token string
 	m.UpdateDescriptionInput.Channel <- channel
 	m.UpdateDescriptionInput.Token <- token
 	return <-m.UpdateDescriptionOutput.Err
-}
-
-type mockStreamManager struct {
-	ConnectTwitchCalled chan bool
-	ConnectTwitchInput  struct {
-		User, Pass, Channel chan string
-	}
-	SendCalled chan bool
-	SendInput  struct {
-		Msg chan stream.TXMessage
-	}
-}
-
-func newMockStreamManager() *mockStreamManager {
-	m := &mockStreamManager{}
-	m.ConnectTwitchCalled = make(chan bool, 100)
-	m.ConnectTwitchInput.User = make(chan string, 100)
-	m.ConnectTwitchInput.Pass = make(chan string, 100)
-	m.ConnectTwitchInput.Channel = make(chan string, 100)
-	m.SendCalled = make(chan bool, 100)
-	m.SendInput.Msg = make(chan stream.TXMessage, 100)
-	return m
-}
-func (m *mockStreamManager) ConnectTwitch(user, pass, channel string) {
-	m.ConnectTwitchCalled <- true
-	m.ConnectTwitchInput.User <- user
-	m.ConnectTwitchInput.Pass <- pass
-	m.ConnectTwitchInput.Channel <- channel
-}
-func (m *mockStreamManager) Send(msg stream.TXMessage) {
-	m.SendCalled <- true
-	m.SendInput.Msg <- msg
 }
 
 type mockBTTVClient struct {

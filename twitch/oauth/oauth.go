@@ -10,11 +10,31 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jasonkeene/anubot-server/store"
 	"github.com/jasonkeene/anubot-server/twitch"
 )
+
+const oauthResponse = `
+<!doctype html>
+<html class="no-js" lang="">
+<head>
+<style type="text/css">
+body {
+	text-align: center;
+	line-height: 100vh;
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 14px;
+}
+</style>
+</head>
+<body>
+Done authenticating with Twitch.
+</body>
+</html>
+`
 
 // NonceStore is used to to store and operate on oauth nonces.
 type NonceStore interface {
@@ -62,6 +82,8 @@ type DoneHandler struct {
 	twitchOauthRedirectURI  string
 	ns                      NonceStore
 	twitch                  *twitch.API
+	mu                      sync.Mutex
+	callbacks               map[string]func()
 }
 
 // NewDoneHandler creates a new handler to finish the Oauth flow.
@@ -71,19 +93,28 @@ func NewDoneHandler(
 	twitchOauthRedirectURI string,
 	ns NonceStore,
 	twitch *twitch.API,
-) DoneHandler {
-	return DoneHandler{
+) *DoneHandler {
+	return &DoneHandler{
 		twitchOauthClientID:     twitchOauthClientID,
 		twitchOauthClientSecret: twitchOauthClientSecret,
 		twitchOauthRedirectURI:  twitchOauthRedirectURI,
-		ns:     ns,
-		twitch: twitch,
+		ns:        ns,
+		twitch:    twitch,
+		callbacks: make(map[string]func()),
 	}
+}
+
+// RegisterCompletionCallback allows you to register a callback that is
+// invoked when the oauth flow is complete.
+func (h *DoneHandler) RegisterCompletionCallback(nonce string, f func()) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.callbacks[nonce] = f
 }
 
 // ServeHTTP handles the response from Twitch after authentication has
 // happened.
-func (h DoneHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *DoneHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	values := r.URL.Query()
 
 	// validate nonce
@@ -161,10 +192,18 @@ func (h DoneHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
+
+	// call any callbacks
+	cb, ok := h.callbacks[nonce]
+	if ok {
+		cb()
+	}
+
+	// write out response
+	fmt.Fprintf(w, oauthResponse)
 }
 
-func (h DoneHandler) createPayload(nonce, code string) io.Reader {
+func (h *DoneHandler) createPayload(nonce, code string) io.Reader {
 	payload := url.Values{}
 	payload.Set("client_id", h.twitchOauthClientID)
 	payload.Set("client_secret", h.twitchOauthClientSecret)
@@ -192,10 +231,10 @@ func GenerateNonce() string {
 }
 
 // URL returns a URL that will start the oauth flow.
-func URL(clientID, userID string, tu store.TwitchUser, ns NonceStore) (string, error) {
+func URL(clientID, userID string, tu store.TwitchUser, ns NonceStore) (string, string, error) {
 	nonce, err := ns.CreateOauthNonce(userID, tu)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	v := url.Values{}
@@ -205,5 +244,5 @@ func URL(clientID, userID string, tu store.TwitchUser, ns NonceStore) (string, e
 	v.Set("client_id", clientID)
 	v.Set("state", nonce)
 
-	return authorizeURL + "?" + v.Encode(), nil
+	return authorizeURL + "?" + v.Encode(), nonce, nil
 }
