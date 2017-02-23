@@ -9,19 +9,15 @@ func bttvEmojiHandler(e event, s *session) {
 	resp, send := setup(e, s)
 	defer send()
 
-	streamerAuthenticated, err := s.Store().TwitchStreamerAuthenticated(s.userID)
+	creds, err := s.Store().TwitchCredentials(s.userID)
 	if err != nil {
 		log.Printf("error authenticating twitch streamer: %s", err)
 		return
 	}
 
 	var streamerUsername string
-	if streamerAuthenticated {
-		streamerUsername, _, _, err = s.Store().TwitchStreamerCredentials(s.userID)
-		if err != nil {
-			log.Printf("error getting twitch streamer creds: %s", err)
-			streamerUsername = ""
-		}
+	if creds.StreamerAuthenticated {
+		streamerUsername = creds.StreamerUsername
 	}
 
 	payload, err := s.api.bttvClient.Emoji(streamerUsername)

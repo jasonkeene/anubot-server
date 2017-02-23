@@ -12,22 +12,22 @@ import (
 	"github.com/jasonkeene/anubot-server/store"
 	"github.com/jasonkeene/anubot-server/stream"
 	"github.com/jasonkeene/anubot-server/twitch"
+	"github.com/jasonkeene/anubot-server/twitch/oauth"
 )
 
 // Store is used to persist data.
 type Store interface {
 	RegisterUser(username, password string) (userID string, err error)
 	AuthenticateUser(username, password string) (userID string, authenticated bool, err error)
-	TwitchClearAuth(userID string) (err error)
-	TwitchAuthenticated(userID string) (authenticated bool, err error)
-	TwitchStreamerAuthenticated(userID string) (authenticated bool, err error)
-	TwitchStreamerCredentials(userID string) (username, password string, twitchUserID int, err error)
-	TwitchBotAuthenticated(userID string) (authenticated bool, err error)
-	TwitchBotCredentials(userID string) (username, password string, twitchUserID int, err error)
-	FetchRecentMessages(userID string) (msgs []stream.RXMessage, err error)
-	CreateOauthNonce(userID string, tu store.TwitchUser) (nonce string, err error)
+
+	StoreOauthNonce(userID string, tu store.TwitchUser, nonce string) (err error)
 	OauthNonceExists(nonce string) (exists bool, err error)
 	FinishOauthNonce(nonce, username string, userID int, od store.OauthData) (err error)
+
+	TwitchCredentials(userID string) (creds store.TwitchCredentials, err error)
+	TwitchClearAuth(userID string) (err error)
+
+	FetchRecentMessages(userID string) (msgs []stream.RXMessage, err error)
 }
 
 // StreamManager is used to connect and send to third party chat.
@@ -54,6 +54,9 @@ type OauthCallbackRegistrar interface {
 	RegisterCompletionCallback(nonce string, f func())
 }
 
+// NonceGenerator generates a random nonce to be used in the oauth flow.
+type NonceGenerator func() string
+
 // Server responds to websocket events sent from the client.
 type Server struct {
 	streamManager        StreamManager
@@ -64,6 +67,7 @@ type Server struct {
 	bttvClient           BTTVClient
 	pingInterval         time.Duration
 	twitchOauthCallbacks OauthCallbackRegistrar
+	nonceGen             NonceGenerator
 }
 
 // Option is used to configure a Server.
@@ -91,6 +95,13 @@ func WithBTTVClient(b BTTVClient) Option {
 	}
 }
 
+// WithNonceGenerator allows you to override the default nonce generator.
+func WithNonceGenerator(ng NonceGenerator) Option {
+	return func(s *Server) {
+		s.nonceGen = ng
+	}
+}
+
 // New creates a new Server.
 func New(
 	streamManager StreamManager,
@@ -109,6 +120,7 @@ func New(
 		twitchOauthClientID:  twitchOauthClientID,
 		bttvClient:           bttv.New(),
 		pingInterval:         5 * time.Second,
+		nonceGen:             oauth.GenerateNonce,
 	}
 	for _, opt := range opts {
 		opt(s)

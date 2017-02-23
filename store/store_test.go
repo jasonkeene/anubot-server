@@ -10,15 +10,13 @@ import (
 	"github.com/a8m/expect"
 	"github.com/fluffle/goirc/client"
 	"github.com/jasonkeene/anubot-server/store"
-	"github.com/jasonkeene/anubot-server/store/bolt"
-	"github.com/jasonkeene/anubot-server/store/dummy"
 	"github.com/jasonkeene/anubot-server/stream"
 )
 
 func TestThatBackendsComplyWithAllStoreMethods(t *testing.T) {
 	var (
-		_ store.Store = &bolt.Bolt{}
-		_ store.Store = &dummy.Dummy{}
+		_ store.Store = &store.Bolt{}
+		_ store.Store = &store.Dummy{}
 	)
 }
 
@@ -68,7 +66,8 @@ func TestThatTwitchOauthFlowWorks(t *testing.T) {
 		userID, err := b.RegisterUser("test-user", "test-pass")
 		expect(err).To.Be.Nil()
 
-		streamerNonce, err := b.CreateOauthNonce(userID, store.Streamer)
+		streamerNonce := "streamer-nonce"
+		err = b.StoreOauthNonce(userID, store.Streamer, streamerNonce)
 		expect(err).To.Be.Nil()
 
 		ok, err := b.OauthNonceExists(streamerNonce)
@@ -86,7 +85,8 @@ func TestThatTwitchOauthFlowWorks(t *testing.T) {
 		ok, _ = b.OauthNonceExists(streamerNonce)
 		expect(ok).Not.To.Be.Ok()
 
-		botNonce, err := b.CreateOauthNonce(userID, store.Bot)
+		botNonce := "bot-nonce"
+		err = b.StoreOauthNonce(userID, store.Bot, botNonce)
 		expect(err).To.Be.Nil()
 
 		ok, err = b.OauthNonceExists(botNonce)
@@ -105,6 +105,7 @@ func TestThatTwitchOauthFlowWorks(t *testing.T) {
 		expect(ok).Not.To.Be.Ok()
 
 		creds, err := b.TwitchCredentials(userID)
+		expect(err).To.Be.Nil()
 		expectedCreds := store.TwitchCredentials{
 			StreamerAuthenticated: true,
 			StreamerUsername:      "test-streamer-user",
@@ -151,13 +152,16 @@ func TestThatYouCanStoreMessages(t *testing.T) {
 			RefreshToken: "test-refresh-token",
 			Scope:        []string{"test-scope"},
 		}
-		nonce, err := b.CreateOauthNonce(userID, store.Streamer)
+		streamerNonce := "streamer-nonce"
+		err = b.StoreOauthNonce(userID, store.Streamer, streamerNonce)
 		expect(err).To.Be.Nil()
-		err = b.FinishOauthNonce(nonce, "test-streamer-user", 12345, od)
+		err = b.FinishOauthNonce(streamerNonce, "test-streamer-user", 12345, od)
 		expect(err).To.Be.Nil()
-		nonce, err = b.CreateOauthNonce(userID, store.Bot)
+
+		botNonce := "bot-nonce"
+		err = b.StoreOauthNonce(userID, store.Bot, botNonce)
 		expect(err).To.Be.Nil()
-		err = b.FinishOauthNonce(nonce, "test-bot-user", 54321, od)
+		err = b.FinishOauthNonce(botNonce, "test-bot-user", 54321, od)
 		expect(err).To.Be.Nil()
 
 		msg1 := stream.RXMessage{
@@ -195,15 +199,15 @@ func setupBackends(t *testing.T) ([]store.Store, func()) {
 	bolt, cleanup := setupBolt(t)
 	return []store.Store{
 			bolt,
-			dummy.New(),
+			store.NewDummy(),
 		}, func() {
 			cleanup()
 		}
 }
 
-func setupBolt(t *testing.T) (*bolt.Bolt, func()) {
+func setupBolt(t *testing.T) (*store.Bolt, func()) {
 	path, cleanup := tempFile(t)
-	b, err := bolt.New(path)
+	b, err := store.NewBolt(path)
 	if err != nil {
 		fmt.Println(err.Error())
 		t.FailNow()

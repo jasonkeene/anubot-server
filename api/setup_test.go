@@ -14,6 +14,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/jasonkeene/anubot-server/api"
+	"github.com/jasonkeene/anubot-server/store"
 	"github.com/pebbe/zmq4"
 	uuid "github.com/satori/go.uuid"
 )
@@ -54,6 +55,9 @@ func setupServer() (server, func()) {
 	mbc := newMockBTTVClient()
 	mcr := newMockOauthCallbackRegistrar()
 	e := endpoint()
+	ng := func() string {
+		return "test-nonce"
+	}
 	s := httptest.NewServer(api.New(
 		msm,
 		ms,
@@ -62,6 +66,7 @@ func setupServer() (server, func()) {
 		"some-client-id",
 		api.WithBTTVClient(mbc),
 		api.WithSubEndpoints([]string{e}),
+		api.WithNonceGenerator(ng),
 	))
 
 	server := server{
@@ -149,8 +154,11 @@ func authenticate(s server, c client) {
 }
 
 func authenticateTwitch(s server) {
-	s.mockStore.TwitchAuthenticatedOutput.Authenticated <- true
-	s.mockStore.TwitchAuthenticatedOutput.Err <- nil
+	s.mockStore.TwitchCredentialsOutput.Creds <- store.TwitchCredentials{
+		StreamerAuthenticated: true,
+		BotAuthenticated:      true,
+	}
+	s.mockStore.TwitchCredentialsOutput.Err <- nil
 }
 
 func endpoint() string {

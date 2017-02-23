@@ -29,11 +29,11 @@ func twitchOauthStartHandler(e event, s *session) {
 		tu = store.Streamer
 	case "bot":
 		tu = store.Bot
-		authenticated, err := s.Store().TwitchStreamerAuthenticated(userID)
+		creds, err := s.Store().TwitchCredentials(userID)
 		if err != nil {
 			return
 		}
-		if !authenticated {
+		if !creds.StreamerAuthenticated {
 			resp.Error = twitchOauthStartOrderError
 			return
 		}
@@ -42,11 +42,13 @@ func twitchOauthStartHandler(e event, s *session) {
 		return
 	}
 
-	url, nonce, err := oauth.URL(s.TwitchOauthClientID(), userID, tu, s.Store())
+	nonce := s.api.nonceGen()
+	err := s.Store().StoreOauthNonce(userID, tu, nonce)
 	if err != nil {
-		log.Printf("got an err trying to create oauth url: %s", err)
+		log.Printf("got an err trying to store oauth nonce: %s", err)
 		return
 	}
+	url := oauth.URL(s.TwitchOauthClientID(), userID, tu, nonce)
 
 	s.api.twitchOauthCallbacks.RegisterCompletionCallback(nonce, func() {
 		resp := event{
@@ -90,49 +92,35 @@ func twitchUserDetailsHandler(e event, s *session) {
 		"bot_username":      "",
 	}
 
-	streamerAuthenticated, err := s.Store().TwitchStreamerAuthenticated(s.userID)
+	creds, err := s.Store().TwitchCredentials(s.userID)
 	if err != nil {
-		log.Printf("unable to authenticate streamer: %s", err)
+		log.Printf("unable to authenticate: %s", err)
 		return
 	}
-	if !streamerAuthenticated {
+	if !creds.StreamerAuthenticated {
 		resp.Payload = p
 		resp.Error = nil
 		return
 	}
-	streamerUsername, _, _, err := s.Store().TwitchStreamerCredentials(s.userID)
+
+	status, game, err := s.api.twitchClient.StreamInfo(creds.StreamerUsername)
 	if err != nil {
-		log.Printf("unable to get streamer creds: %s", err)
+		log.Printf("unable to fetch stream info for user: %s: %s", creds.StreamerUsername, err)
 		return
 	}
-	status, game, err := s.api.twitchClient.StreamInfo(streamerUsername)
-	if err != nil {
-		log.Printf("unable to fetch stream info for user: %s: %s", streamerUsername, err)
-		return
-	}
-	p["streamer_authenticated"] = streamerAuthenticated
-	p["streamer_username"] = streamerUsername
+	p["streamer_authenticated"] = creds.StreamerAuthenticated
+	p["streamer_username"] = creds.StreamerUsername
 	p["streamer_status"] = status
 	p["streamer_game"] = game
 
-	botAuthenticated, err := s.Store().TwitchBotAuthenticated(s.userID)
-	if err != nil {
-		log.Printf("unable to authenticate bot: %s", err)
-		return
-	}
-	if !botAuthenticated {
+	if !creds.BotAuthenticated {
 		resp.Payload = p
 		resp.Error = nil
 		return
 	}
 
-	botUsername, _, _, err := s.Store().TwitchBotCredentials(s.userID)
-	if err != nil {
-		log.Printf("unable to get bot creds: %s", err)
-		return
-	}
-	p["bot_authenticated"] = botAuthenticated
-	p["bot_username"] = botUsername
+	p["bot_authenticated"] = creds.BotAuthenticated
+	p["bot_username"] = creds.BotUsername
 	resp.Payload = p
 	resp.Error = nil
 }
@@ -148,14 +136,9 @@ func twitchGamesHandler(e event, s *session) {
 
 // twitchStreamMessagesHandler writes chat messages to websocket connection.
 func twitchStreamMessagesHandler(e event, s *session) {
-	streamerUsername, streamerPassword, _, err := s.Store().TwitchStreamerCredentials(s.userID)
+	creds, err := s.Store().TwitchCredentials(s.userID)
 	if err != nil {
-		log.Printf("unable to get streamer creds: %s", err)
-		return
-	}
-	botUsername, botPassword, botID, err := s.Store().TwitchBotCredentials(s.userID)
-	if err != nil {
-		log.Printf("unable to get bot creds: %s", err)
+		log.Printf("unable to get creds: %s", err)
 		return
 	}
 
@@ -165,7 +148,7 @@ func twitchStreamMessagesHandler(e event, s *session) {
 			if msg.Type != stream.Twitch {
 				continue
 			}
-			if msg.Twitch.OwnerID == botID && !userMessage(&msg, streamerUsername) {
+			if msg.Twitch.OwnerID == creds.BotTwitchUserID && !userMessage(&msg, creds.StreamerUsername) {
 				continue
 			}
 
@@ -189,13 +172,21 @@ func twitchStreamMessagesHandler(e event, s *session) {
 		}
 	}
 
-	s.api.streamManager.ConnectTwitch(streamerUsername, "oauth:"+streamerPassword, "#"+streamerUsername)
-	s.api.streamManager.ConnectTwitch(botUsername, "oauth:"+botPassword, "#"+streamerUsername)
+	s.api.streamManager.ConnectTwitch(
+		creds.StreamerUsername,
+		"oauth:"+creds.StreamerPassword,
+		"#"+creds.StreamerUsername,
+	)
+	s.api.streamManager.ConnectTwitch(
+		creds.BotUsername,
+		"oauth:"+creds.BotPassword,
+		"#"+creds.StreamerUsername,
+	)
 
 	mw, err := newMessageWriter(
-		streamerUsername,
-		"twitch:"+streamerUsername,
-		"twitch:"+botUsername,
+		creds.StreamerUsername,
+		"twitch:"+creds.StreamerUsername,
+		"twitch:"+creds.BotUsername,
 		s.api.subEndpoints,
 		s,
 	)
@@ -228,33 +219,32 @@ func twitchSendMessageHandler(e event, s *session) {
 		return
 	}
 
-	streamerUsername, streamerPassword, _, err := s.Store().TwitchStreamerCredentials(s.userID)
+	creds, err := s.Store().TwitchCredentials(s.userID)
 	if err != nil {
-		log.Printf("unable to get streamer creds: %s", err)
-		return
-	}
-	botUsername, botPassword, _, err := s.Store().TwitchBotCredentials(s.userID)
-	if err != nil {
-		log.Printf("unable to get bot creds: %s", err)
+		log.Printf("unable to get creds: %s", err)
 		return
 	}
 
 	var username, password string
 	switch userType {
 	case "streamer":
-		username, password = streamerUsername, streamerPassword
+		username, password = creds.StreamerUsername, creds.StreamerPassword
 	case "bot":
-		username, password = botUsername, botPassword
+		username, password = creds.BotUsername, creds.BotPassword
 	default:
 		resp.Error = invalidTwitchUserType
 		return
 	}
-	s.api.streamManager.ConnectTwitch(username, "oauth:"+password, "#"+streamerUsername)
+	s.api.streamManager.ConnectTwitch(
+		username,
+		"oauth:"+password,
+		"#"+creds.StreamerUsername,
+	)
 	s.api.streamManager.Send(stream.TXMessage{
 		Type: stream.Twitch,
 		Twitch: &stream.TXTwitch{
 			Username: username,
-			To:       "#" + streamerUsername,
+			To:       "#" + creds.StreamerUsername,
 			Message:  message,
 		},
 	})
@@ -282,13 +272,18 @@ func twitchUpdateChatDescriptionHandler(e event, s *session) {
 		return
 	}
 
-	user, pass, _, err := s.Store().TwitchStreamerCredentials(s.userID)
+	creds, err := s.Store().TwitchCredentials(s.userID)
 	if err != nil {
-		log.Printf("unable to get streamer creds: %s", err)
+		log.Printf("unable to get creds: %s", err)
 		return
 	}
 
-	err = s.api.twitchClient.UpdateDescription(status, game, user, pass)
+	err = s.api.twitchClient.UpdateDescription(
+		status,
+		game,
+		creds.StreamerUsername,
+		creds.StreamerPassword,
+	)
 	if err != nil {
 		log.Println("unable to update chat description, got error:", err)
 		return
@@ -301,7 +296,9 @@ func twitchUpdateChatDescriptionHandler(e event, s *session) {
 func twitchAuthenticateWrapper(f eventHandler) eventHandler {
 	return func(e event, s *session) {
 		userID, _ := s.Authenticated()
-		authenticated, err := s.Store().TwitchAuthenticated(userID)
+
+		creds, err := s.Store().TwitchCredentials(userID)
+
 		if err != nil {
 			err := s.Send(event{
 				Cmd:       e.Cmd,
@@ -313,7 +310,7 @@ func twitchAuthenticateWrapper(f eventHandler) eventHandler {
 			}
 			return
 		}
-		if authenticated {
+		if creds.StreamerAuthenticated && creds.BotAuthenticated {
 			f(e, s)
 			return
 		}

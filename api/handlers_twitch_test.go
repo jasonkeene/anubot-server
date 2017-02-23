@@ -21,8 +21,7 @@ func TestTwitchOauthStartStreamer(t *testing.T) {
 	defer cleanup()
 	authenticate(server, client)
 
-	server.mockStore.CreateOauthNonceOutput.Nonce <- "some-nonce"
-	server.mockStore.CreateOauthNonceOutput.Err <- nil
+	server.mockStore.StoreOauthNonceOutput.Err <- nil
 
 	oauthStartReq := event{
 		Cmd:       "twitch-oauth-start",
@@ -32,11 +31,12 @@ func TestTwitchOauthStartStreamer(t *testing.T) {
 	expectedResp := event{
 		Cmd:       "twitch-oauth-start",
 		RequestID: oauthStartReq.RequestID,
-		Payload:   `https://api.twitch.tv/kraken/oauth2/authorize?client_id=some-client-id&redirect_uri=https%3A%2F%2Fanubot.io%2Ftwitch_oauth%2Fdone&response_type=code&scope=user_read+user_blocks_edit+user_blocks_read+user_follows_edit+channel_read+channel_editor+channel_commercial+channel_stream+channel_subscriptions+user_subscriptions+channel_check_subscription+chat_login+channel_feed_read+channel_feed_edit&state=some-nonce`,
+		Payload:   `https://api.twitch.tv/kraken/oauth2/authorize?client_id=some-client-id&redirect_uri=https%3A%2F%2Fanubot.io%2Ftwitch_oauth%2Fdone&response_type=code&scope=user_read+user_blocks_edit+user_blocks_read+user_follows_edit+channel_read+channel_editor+channel_commercial+channel_stream+channel_subscriptions+user_subscriptions+channel_check_subscription+chat_login+channel_feed_read+channel_feed_edit&state=test-nonce`,
 	}
 	client.SendEvent(oauthStartReq)
-	expect(<-server.mockStore.CreateOauthNonceInput.Tu).To.Equal(store.Streamer)
-	expect(<-server.mockStore.CreateOauthNonceInput.UserID).To.Equal("some-user-id")
+	expect(<-server.mockStore.StoreOauthNonceInput.Tu).To.Equal(store.Streamer)
+	expect(<-server.mockStore.StoreOauthNonceInput.UserID).To.Equal("some-user-id")
+	expect(<-server.mockStore.StoreOauthNonceInput.Nonce).To.Equal("test-nonce")
 	expect(client.ReadEvent()).To.Equal(expectedResp)
 }
 
@@ -49,10 +49,11 @@ func TestTwitchOauthStartBotAfterStreamer(t *testing.T) {
 	defer cleanup()
 	authenticate(server, client)
 
-	server.mockStore.TwitchStreamerAuthenticatedOutput.Authenticated <- true
-	server.mockStore.TwitchStreamerAuthenticatedOutput.Err <- nil
-	server.mockStore.CreateOauthNonceOutput.Nonce <- "some-nonce"
-	server.mockStore.CreateOauthNonceOutput.Err <- nil
+	server.mockStore.TwitchCredentialsOutput.Creds <- store.TwitchCredentials{
+		StreamerAuthenticated: true,
+	}
+	server.mockStore.TwitchCredentialsOutput.Err <- nil
+	server.mockStore.StoreOauthNonceOutput.Err <- nil
 
 	oauthStartReq := event{
 		Cmd:       "twitch-oauth-start",
@@ -62,11 +63,12 @@ func TestTwitchOauthStartBotAfterStreamer(t *testing.T) {
 	expectedResp := event{
 		Cmd:       "twitch-oauth-start",
 		RequestID: oauthStartReq.RequestID,
-		Payload:   `https://api.twitch.tv/kraken/oauth2/authorize?client_id=some-client-id&redirect_uri=https%3A%2F%2Fanubot.io%2Ftwitch_oauth%2Fdone&response_type=code&scope=user_read+user_blocks_edit+user_blocks_read+user_follows_edit+channel_read+channel_editor+channel_commercial+channel_stream+channel_subscriptions+user_subscriptions+channel_check_subscription+chat_login+channel_feed_read+channel_feed_edit&state=some-nonce`,
+		Payload:   `https://api.twitch.tv/kraken/oauth2/authorize?client_id=some-client-id&redirect_uri=https%3A%2F%2Fanubot.io%2Ftwitch_oauth%2Fdone&response_type=code&scope=user_read+user_blocks_edit+user_blocks_read+user_follows_edit+channel_read+channel_editor+channel_commercial+channel_stream+channel_subscriptions+user_subscriptions+channel_check_subscription+chat_login+channel_feed_read+channel_feed_edit&state=test-nonce`,
 	}
 	client.SendEvent(oauthStartReq)
-	expect(<-server.mockStore.CreateOauthNonceInput.Tu).To.Equal(store.Bot)
-	expect(<-server.mockStore.CreateOauthNonceInput.UserID).To.Equal("some-user-id")
+	expect(<-server.mockStore.StoreOauthNonceInput.Tu).To.Equal(store.Bot)
+	expect(<-server.mockStore.StoreOauthNonceInput.UserID).To.Equal("some-user-id")
+	expect(<-server.mockStore.StoreOauthNonceInput.Nonce).To.Equal("test-nonce")
 	expect(client.ReadEvent()).To.Equal(expectedResp)
 }
 
@@ -79,8 +81,8 @@ func TestTwitchOauthStartBotBeforeStreamer(t *testing.T) {
 	defer cleanup()
 	authenticate(server, client)
 
-	server.mockStore.TwitchStreamerAuthenticatedOutput.Authenticated <- false
-	server.mockStore.TwitchStreamerAuthenticatedOutput.Err <- nil
+	server.mockStore.TwitchCredentialsOutput.Creds <- store.TwitchCredentials{}
+	server.mockStore.TwitchCredentialsOutput.Err <- nil
 
 	oauthStartReq := event{
 		Cmd:       "twitch-oauth-start",
@@ -132,21 +134,16 @@ func TestTwitchUserDetails(t *testing.T) {
 	defer cleanup()
 	authenticate(server, client)
 
-	server.mockStore.TwitchStreamerAuthenticatedOutput.Authenticated <- true
-	server.mockStore.TwitchStreamerAuthenticatedOutput.Err <- nil
-	server.mockStore.TwitchStreamerCredentialsOutput.Username <- "streamer-user"
-	server.mockStore.TwitchStreamerCredentialsOutput.Password <- ""
-	server.mockStore.TwitchStreamerCredentialsOutput.TwitchUserID <- 0
-	server.mockStore.TwitchStreamerCredentialsOutput.Err <- nil
+	server.mockStore.TwitchCredentialsOutput.Creds <- store.TwitchCredentials{
+		StreamerAuthenticated: true,
+		StreamerUsername:      "streamer-user",
+		BotAuthenticated:      true,
+		BotUsername:           "bot-user",
+	}
+	server.mockStore.TwitchCredentialsOutput.Err <- nil
 	server.mockTwitchClient.StreamInfoOutput.Status <- "streamer-status"
 	server.mockTwitchClient.StreamInfoOutput.Game <- "streamer-game"
 	server.mockTwitchClient.StreamInfoOutput.Err <- nil
-	server.mockStore.TwitchBotAuthenticatedOutput.Authenticated <- true
-	server.mockStore.TwitchBotAuthenticatedOutput.Err <- nil
-	server.mockStore.TwitchBotCredentialsOutput.Username <- "bot-user"
-	server.mockStore.TwitchBotCredentialsOutput.Password <- ""
-	server.mockStore.TwitchBotCredentialsOutput.TwitchUserID <- 0
-	server.mockStore.TwitchBotCredentialsOutput.Err <- nil
 
 	userDetailsReq := event{
 		Cmd:       "twitch-user-details",
@@ -278,14 +275,13 @@ func TestTwitchStreamMessages(t *testing.T) {
 		},
 	}
 
-	server.mockStore.TwitchStreamerCredentialsOutput.Username <- "streamer-user"
-	server.mockStore.TwitchStreamerCredentialsOutput.Password <- "streamer-pass"
-	server.mockStore.TwitchStreamerCredentialsOutput.TwitchUserID <- 0
-	server.mockStore.TwitchStreamerCredentialsOutput.Err <- nil
-	server.mockStore.TwitchBotCredentialsOutput.Username <- "bot-user"
-	server.mockStore.TwitchBotCredentialsOutput.Password <- "bot-pass"
-	server.mockStore.TwitchBotCredentialsOutput.TwitchUserID <- 0
-	server.mockStore.TwitchBotCredentialsOutput.Err <- nil
+	server.mockStore.TwitchCredentialsOutput.Creds <- store.TwitchCredentials{
+		StreamerUsername: "streamer-user",
+		StreamerPassword: "streamer-pass",
+		BotUsername:      "bot-user",
+		BotPassword:      "bot-pass",
+	}
+	server.mockStore.TwitchCredentialsOutput.Err <- nil
 	server.mockStore.FetchRecentMessagesOutput.Msgs <- recentMessages
 	server.mockStore.FetchRecentMessagesOutput.Err <- nil
 
@@ -401,14 +397,13 @@ func TestTwitchSendMessage(t *testing.T) {
 	authenticate(server, client)
 
 	authenticateTwitch(server)
-	server.mockStore.TwitchStreamerCredentialsOutput.Username <- "streamer-user"
-	server.mockStore.TwitchStreamerCredentialsOutput.Password <- "streamer-pass"
-	server.mockStore.TwitchStreamerCredentialsOutput.TwitchUserID <- 0
-	server.mockStore.TwitchStreamerCredentialsOutput.Err <- nil
-	server.mockStore.TwitchBotCredentialsOutput.Username <- "bot-user"
-	server.mockStore.TwitchBotCredentialsOutput.Password <- "bot-pass"
-	server.mockStore.TwitchBotCredentialsOutput.TwitchUserID <- 0
-	server.mockStore.TwitchBotCredentialsOutput.Err <- nil
+	server.mockStore.TwitchCredentialsOutput.Creds <- store.TwitchCredentials{
+		StreamerUsername: "streamer-user",
+		StreamerPassword: "streamer-pass",
+		BotUsername:      "bot-user",
+		BotPassword:      "bot-pass",
+	}
+	server.mockStore.TwitchCredentialsOutput.Err <- nil
 
 	sendMessageReq := event{
 		Cmd:       "twitch-send-message",
@@ -437,14 +432,13 @@ func TestTwitchSendMessage(t *testing.T) {
 	})
 
 	authenticateTwitch(server)
-	server.mockStore.TwitchStreamerCredentialsOutput.Username <- "streamer-user"
-	server.mockStore.TwitchStreamerCredentialsOutput.Password <- "streamer-pass"
-	server.mockStore.TwitchStreamerCredentialsOutput.TwitchUserID <- 0
-	server.mockStore.TwitchStreamerCredentialsOutput.Err <- nil
-	server.mockStore.TwitchBotCredentialsOutput.Username <- "bot-user"
-	server.mockStore.TwitchBotCredentialsOutput.Password <- "bot-pass"
-	server.mockStore.TwitchBotCredentialsOutput.TwitchUserID <- 0
-	server.mockStore.TwitchBotCredentialsOutput.Err <- nil
+	server.mockStore.TwitchCredentialsOutput.Creds <- store.TwitchCredentials{
+		StreamerUsername: "streamer-user",
+		StreamerPassword: "streamer-pass",
+		BotUsername:      "bot-user",
+		BotPassword:      "bot-pass",
+	}
+	server.mockStore.TwitchCredentialsOutput.Err <- nil
 
 	sendMessageReq = event{
 		Cmd:       "twitch-send-message",
@@ -473,14 +467,13 @@ func TestTwitchSendMessage(t *testing.T) {
 	})
 
 	authenticateTwitch(server)
-	server.mockStore.TwitchStreamerCredentialsOutput.Username <- "streamer-user"
-	server.mockStore.TwitchStreamerCredentialsOutput.Password <- "streamer-pass"
-	server.mockStore.TwitchStreamerCredentialsOutput.TwitchUserID <- 0
-	server.mockStore.TwitchStreamerCredentialsOutput.Err <- nil
-	server.mockStore.TwitchBotCredentialsOutput.Username <- "bot-user"
-	server.mockStore.TwitchBotCredentialsOutput.Password <- "bot-pass"
-	server.mockStore.TwitchBotCredentialsOutput.TwitchUserID <- 0
-	server.mockStore.TwitchBotCredentialsOutput.Err <- nil
+	server.mockStore.TwitchCredentialsOutput.Creds <- store.TwitchCredentials{
+		StreamerUsername: "streamer-user",
+		StreamerPassword: "streamer-pass",
+		BotUsername:      "bot-user",
+		BotPassword:      "bot-pass",
+	}
+	server.mockStore.TwitchCredentialsOutput.Err <- nil
 
 	sendMessageReq = event{
 		Cmd:       "twitch-send-message",
@@ -512,10 +505,11 @@ func TestTwitchUpdateChatDescription(t *testing.T) {
 	authenticate(server, client)
 
 	authenticateTwitch(server)
-	server.mockStore.TwitchStreamerCredentialsOutput.Username <- "streamer-user"
-	server.mockStore.TwitchStreamerCredentialsOutput.Password <- "streamer-pass"
-	server.mockStore.TwitchStreamerCredentialsOutput.TwitchUserID <- 0
-	server.mockStore.TwitchStreamerCredentialsOutput.Err <- nil
+	server.mockStore.TwitchCredentialsOutput.Creds <- store.TwitchCredentials{
+		StreamerUsername: "streamer-user",
+		StreamerPassword: "streamer-pass",
+	}
+	server.mockStore.TwitchCredentialsOutput.Err <- nil
 	server.mockTwitchClient.UpdateDescriptionOutput.Err <- nil
 
 	sendMessageReq := event{
@@ -547,8 +541,8 @@ func TestRequestFailsWhenNotAuthedWithTwitch(t *testing.T) {
 	defer cleanup()
 	authenticate(server, client)
 
-	server.mockStore.TwitchAuthenticatedOutput.Authenticated <- false
-	server.mockStore.TwitchAuthenticatedOutput.Err <- nil
+	server.mockStore.TwitchCredentialsOutput.Creds <- store.TwitchCredentials{}
+	server.mockStore.TwitchCredentialsOutput.Err <- nil
 	sendMessageReq := event{
 		Cmd:       "twitch-update-chat-description",
 		RequestID: requestID(),

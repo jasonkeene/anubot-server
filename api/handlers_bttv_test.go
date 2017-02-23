@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/a8m/expect"
+	"github.com/jasonkeene/anubot-server/store"
 )
 
 func TestBTTVEmojiWithTwitchStreamerAuthed(t *testing.T) {
@@ -16,12 +17,13 @@ func TestBTTVEmojiWithTwitchStreamerAuthed(t *testing.T) {
 	defer cleanup()
 	authenticate(server, client)
 
-	server.mockStore.TwitchStreamerAuthenticatedOutput.Authenticated <- true
-	server.mockStore.TwitchStreamerAuthenticatedOutput.Err <- nil
-	server.mockStore.TwitchStreamerCredentialsOutput.Username <- "test-username"
-	server.mockStore.TwitchStreamerCredentialsOutput.Password <- "test-password"
-	server.mockStore.TwitchStreamerCredentialsOutput.TwitchUserID <- 3
-	server.mockStore.TwitchStreamerCredentialsOutput.Err <- nil
+	server.mockStore.TwitchCredentialsOutput.Creds <- store.TwitchCredentials{
+		StreamerAuthenticated: true,
+		StreamerUsername:      "test-username",
+		StreamerPassword:      "test-password",
+		StreamerTwitchUserID:  3,
+	}
+	server.mockStore.TwitchCredentialsOutput.Err <- nil
 	expectedEmoji := map[string]string{
 		"PawFive": "https://cdn.betterttv.net/emote/570fc2e801764c68585059b9/1x",
 	}
@@ -56,8 +58,8 @@ func TestBTTVEmojiWithoutTwitchStreamerAuthed(t *testing.T) {
 	defer cleanup()
 	authenticate(server, client)
 
-	server.mockStore.TwitchStreamerAuthenticatedOutput.Authenticated <- false
-	server.mockStore.TwitchStreamerAuthenticatedOutput.Err <- nil
+	server.mockStore.TwitchCredentialsOutput.Creds <- store.TwitchCredentials{}
+	server.mockStore.TwitchCredentialsOutput.Err <- nil
 	expectedEmoji := map[string]string{
 		"PawFive": "https://cdn.betterttv.net/emote/570fc2e801764c68585059b9/1x",
 	}
@@ -92,8 +94,8 @@ func TestBTTVEmojiWhenBTTVIsDown(t *testing.T) {
 	defer cleanup()
 	authenticate(server, client)
 
-	server.mockStore.TwitchStreamerAuthenticatedOutput.Authenticated <- false
-	server.mockStore.TwitchStreamerAuthenticatedOutput.Err <- nil
+	server.mockStore.TwitchCredentialsOutput.Creds <- store.TwitchCredentials{}
+	server.mockStore.TwitchCredentialsOutput.Err <- nil
 	server.mockBTTVClient.EmojiOutput.Emoji <- nil
 	server.mockBTTVClient.EmojiOutput.Err <- errors.New("foobar")
 

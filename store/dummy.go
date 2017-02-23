@@ -1,4 +1,4 @@
-package dummy
+package store
 
 import (
 	"errors"
@@ -9,9 +9,7 @@ import (
 
 	"github.com/satori/go.uuid"
 
-	"github.com/jasonkeene/anubot-server/store"
 	"github.com/jasonkeene/anubot-server/stream"
-	"github.com/jasonkeene/anubot-server/twitch/oauth"
 )
 
 // Dummy is a store backend that stores everything in memory.
@@ -22,8 +20,8 @@ type Dummy struct {
 	messages map[string][]stream.RXMessage
 }
 
-// New creates a new Dummy store.
-func New() *Dummy {
+// NewDummy creates a new Dummy store.
+func NewDummy() *Dummy {
 	return &Dummy{
 		users:    make(users),
 		nonces:   make(map[string]nonceRecord),
@@ -42,13 +40,13 @@ func (d *Dummy) RegisterUser(username, password string) (string, error) {
 	defer d.mu.Unlock()
 
 	if d.users.exists(username) {
-		return "", store.ErrUsernameTaken
+		return "", ErrUsernameTaken
 	}
 
 	id := uuid.NewV4().String()
 	d.users[id] = userRecord{
-		username: username,
-		password: password,
+		Username: username,
+		Password: password,
 	}
 	return id, nil
 }
@@ -59,35 +57,35 @@ func (d *Dummy) AuthenticateUser(username, password string) (string, bool, error
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	id, c, exists := d.users.lookup(username)
+	id, ur, exists := d.users.lookup(username)
 	if !exists {
 		return "", false, nil
 	}
-	if c.password != password {
+	if ur.Password != password {
 		return "", false, nil
 	}
 	return id, true, nil
 }
 
-// CreateOauthNonce creates and returns a unique oauth nonce.
-func (d *Dummy) CreateOauthNonce(userID string, tu store.TwitchUser) (string, error) {
+// StoreOauthNonce stores the oauth nonce.
+func (d *Dummy) StoreOauthNonce(userID string, tu TwitchUser, nonce string) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
 	switch tu {
-	case store.Streamer:
-	case store.Bot:
+	case Streamer:
+	case Bot:
 	default:
-		return "", errors.New("bad twitch user type in CreateOauthNonce")
+		return errors.New("bad twitch user type in CreateOauthNonce")
 	}
 
-	nonce := oauth.GenerateNonce()
 	d.nonces[nonce] = nonceRecord{
-		userID:  userID,
-		tu:      tu,
-		created: time.Now(),
+		Nonce:   nonce,
+		UserID:  userID,
+		TU:      tu,
+		Created: time.Now(),
 	}
-	return nonce, nil
+	return nil
 }
 
 // OauthNonceExists tells you if the provided nonce was recently created and
@@ -105,49 +103,49 @@ func (d *Dummy) FinishOauthNonce(
 	nonce string,
 	username string,
 	userID int,
-	od store.OauthData,
+	od OauthData,
 ) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
 	nr, ok := d.nonces[nonce]
 	if !ok {
-		return store.ErrUnknownNonce
+		return ErrUnknownNonce
 	}
 
-	ur := d.users[nr.userID]
-	switch nr.tu {
-	case store.Streamer:
-		ur.streamerOD = od
-		ur.streamerUsername = username
-		ur.streamerID = userID
-	case store.Bot:
-		ur.botOD = od
-		ur.botUsername = username
-		ur.botID = userID
+	ur := d.users[nr.UserID]
+	switch nr.TU {
+	case Streamer:
+		ur.StreamerOD = od
+		ur.StreamerUsername = username
+		ur.StreamerID = userID
+	case Bot:
+		ur.BotOD = od
+		ur.BotUsername = username
+		ur.BotID = userID
 	default:
 		return errors.New("bad twitch user type, this should never happen")
 	}
 
 	delete(d.nonces, nonce)
-	d.users[nr.userID] = ur
+	d.users[nr.UserID] = ur
 	return nil
 }
 
 // TwitchCredentials gives you the twitch credentials for a given users.
-func (d *Dummy) TwitchCredentials(userID string) (store.TwitchCredentials, error) {
+func (d *Dummy) TwitchCredentials(userID string) (TwitchCredentials, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	ur := d.users[userID]
-	return store.TwitchCredentials{
-		StreamerAuthenticated: ur.streamerOD.AccessToken != "",
-		StreamerUsername:      ur.streamerUsername,
-		StreamerPassword:      ur.streamerOD.AccessToken,
-		StreamerTwitchUserID:  ur.streamerID,
-		BotAuthenticated:      ur.botOD.AccessToken != "",
-		BotUsername:           ur.botUsername,
-		BotPassword:           ur.botOD.AccessToken,
-		BotTwitchUserID:       ur.botID,
+	return TwitchCredentials{
+		StreamerAuthenticated: ur.StreamerOD.AccessToken != "",
+		StreamerUsername:      ur.StreamerUsername,
+		StreamerPassword:      ur.StreamerOD.AccessToken,
+		StreamerTwitchUserID:  ur.StreamerID,
+		BotAuthenticated:      ur.BotOD.AccessToken != "",
+		BotUsername:           ur.BotUsername,
+		BotPassword:           ur.BotOD.AccessToken,
+		BotTwitchUserID:       ur.BotID,
 	}, nil
 }
 
@@ -156,12 +154,12 @@ func (d *Dummy) TwitchClearAuth(userID string) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	ur := d.users[userID]
-	ur.streamerOD = store.OauthData{}
-	ur.streamerUsername = ""
-	ur.streamerID = 0
-	ur.botOD = store.OauthData{}
-	ur.botUsername = ""
-	ur.botID = 0
+	ur.StreamerOD = OauthData{}
+	ur.StreamerUsername = ""
+	ur.StreamerID = 0
+	ur.BotOD = OauthData{}
+	ur.BotUsername = ""
+	ur.BotID = 0
 	d.users[userID] = ur
 	return nil
 }
@@ -199,13 +197,6 @@ func (d *Dummy) FetchRecentMessages(userID string) ([]stream.RXMessage, error) {
 	})
 
 	return messages[:min(len(messages), 500)], nil
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }
 
 // QueryMessages allows the user to search for messages that match a search

@@ -11,7 +11,6 @@ import (
 	"github.com/jasonkeene/anubot-server/api"
 	"github.com/jasonkeene/anubot-server/dispatch"
 	"github.com/jasonkeene/anubot-server/store"
-	"github.com/jasonkeene/anubot-server/store/bolt"
 	"github.com/jasonkeene/anubot-server/stream"
 	"github.com/jasonkeene/anubot-server/twitch"
 	"github.com/jasonkeene/anubot-server/twitch/oauth"
@@ -39,7 +38,7 @@ func main() {
 	switch backend {
 	case "bolt":
 		var err error
-		st, err = bolt.New(v.GetString("store_bolt_path"))
+		st, err = store.NewBolt(v.GetString("store_bolt_path"))
 		if err != nil {
 			log.Panicf("unable to craete bolt database: %s", err)
 		}

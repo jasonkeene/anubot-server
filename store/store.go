@@ -14,8 +14,8 @@ type Store interface {
 	// If they are the user ID is returned with a bool to indicate success.
 	AuthenticateUser(username, password string) (userID string, success bool, err error)
 
-	// CreateOauthNonce creates and returns a unique oauth nonce.
-	CreateOauthNonce(userID string, tu TwitchUser) (nonce string, err error)
+	// StoreOauthNonce stores the oauth nonce.
+	StoreOauthNonce(userID string, tu TwitchUser, nonce string) (err error)
 
 	// OauthNonceExists tells you if the provided nonce was recently created
 	// and not yet finished.
@@ -48,11 +48,12 @@ type Store interface {
 // both streamer and bot users.
 type TwitchCredentials struct {
 	StreamerAuthenticated bool
-	StreamerUsername      string
-	StreamerPassword      string
-	StreamerTwitchUserID  int
 	BotAuthenticated      bool
-	BotUsername           string
-	BotPassword           string
-	BotTwitchUserID       int
+
+	StreamerUsername     string
+	StreamerPassword     string
+	StreamerTwitchUserID int
+	BotUsername          string
+	BotPassword          string
+	BotTwitchUserID      int
 }

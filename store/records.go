@@ -1,4 +1,4 @@
-package bolt
+package store
 
 import (
 	"encoding/json"
@@ -8,27 +8,26 @@ import (
 
 	"github.com/boltdb/bolt"
 
-	"github.com/jasonkeene/anubot-server/store"
 	"github.com/jasonkeene/anubot-server/stream"
 )
 
 type userRecord struct {
-	UserID           string          `json:"user_id"`
-	Username         string          `json:"username"`
-	Password         string          `json:"password"`
-	StreamerUsername string          `json:"streamer_username"`
-	StreamerOD       store.OauthData `json:"streamer_od"`
-	StreamerID       int             `json:"streamer_id"`
-	BotUsername      string          `json:"bot_username"`
-	BotOD            store.OauthData `json:"bot_od"`
-	BotID            int             `json:"bot_id"`
+	UserID           string    `json:"user_id"`
+	Username         string    `json:"username"`
+	Password         string    `json:"password"`
+	StreamerUsername string    `json:"streamer_username"`
+	StreamerOD       OauthData `json:"streamer_od"`
+	StreamerID       int       `json:"streamer_id"`
+	BotUsername      string    `json:"bot_username"`
+	BotOD            OauthData `json:"bot_od"`
+	BotID            int       `json:"bot_id"`
 }
 
 type nonceRecord struct {
-	Nonce   string           `json:"nonce"`
-	UserID  string           `json:"user_id"`
-	TU      store.TwitchUser `json:"tu"`
-	Created time.Time        `json:"created"`
+	Nonce   string     `json:"nonce"`
+	UserID  string     `json:"user_id"`
+	TU      TwitchUser `json:"tu"`
+	Created time.Time  `json:"created"`
 }
 
 type messageRecord []stream.RXMessage
@@ -48,7 +47,7 @@ func getNonceRecord(nonce string, tx *bolt.Tx) (nonceRecord, error) {
 
 	read := b.Get([]byte(nonce))
 	if read == nil {
-		return nonceRecord{}, store.ErrUnknownNonce
+		return nonceRecord{}, ErrUnknownNonce
 	}
 
 	var nr nonceRecord
@@ -80,7 +79,7 @@ func getUserRecord(userID string, tx *bolt.Tx) (userRecord, error) {
 
 	read := b.Get([]byte(userID))
 	if read == nil {
-		return userRecord{}, store.ErrUnknownUserID
+		return userRecord{}, ErrUnknownUserID
 	}
 
 	var ur userRecord
@@ -105,7 +104,7 @@ func getUserRecordByUsername(username string, tx *bolt.Tx) (userRecord, error) {
 			return ur, nil
 		}
 	}
-	return userRecord{}, store.ErrUnknownUsername
+	return userRecord{}, ErrUnknownUsername
 }
 
 func upsertMessage(msg stream.RXMessage, tx *bolt.Tx) error {
@@ -154,6 +153,33 @@ func getMessageRecord(key string, tx *bolt.Tx) (messageRecord, error) {
 }
 
 func getMessageKey(msg stream.RXMessage) (string, error) {
+	switch msg.Type {
+	case stream.Twitch:
+		return "twitch:" + strconv.Itoa(msg.Twitch.OwnerID), nil
+	case stream.Discord:
+		return "discord:" + msg.Discord.OwnerID, nil
+	default:
+		return "", errors.New("invalid message type")
+	}
+}
+
+type users map[string]userRecord
+
+func (u users) lookup(username string) (string, userRecord, bool) {
+	for id, creds := range u {
+		if creds.Username == username {
+			return id, creds, true
+		}
+	}
+	return "", userRecord{}, false
+}
+
+func (u users) exists(username string) bool {
+	_, _, exists := u.lookup(username)
+	return exists
+}
+
+func messageKey(msg stream.RXMessage) (string, error) {
 	switch msg.Type {
 	case stream.Twitch:
 		return "twitch:" + strconv.Itoa(msg.Twitch.OwnerID), nil

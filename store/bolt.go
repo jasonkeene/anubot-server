@@ -1,4 +1,4 @@
-package bolt
+package store
 
 import (
 	"errors"
@@ -11,9 +11,7 @@ import (
 	"github.com/boltdb/bolt"
 	uuid "github.com/satori/go.uuid"
 
-	"github.com/jasonkeene/anubot-server/store"
 	"github.com/jasonkeene/anubot-server/stream"
-	"github.com/jasonkeene/anubot-server/twitch/oauth"
 )
 
 // Bolt is a store backend for boltdb.
@@ -21,8 +19,8 @@ type Bolt struct {
 	db *bolt.DB
 }
 
-// New creates a new bolt store.
-func New(path string) (*Bolt, error) {
+// NewBolt creates a new bolt store.
+func NewBolt(path string) (*Bolt, error) {
 	db, err := bolt.Open(path, 0600, &bolt.Options{
 		Timeout: time.Second,
 	})
@@ -75,7 +73,7 @@ func (b *Bolt) RegisterUser(username, password string) (string, error) {
 	err := b.db.Update(func(tx *bolt.Tx) error {
 		_, err := getUserRecordByUsername(username, tx)
 		if err == nil {
-			return store.ErrUsernameTaken
+			return ErrUsernameTaken
 		}
 		return upsertUserRecord(ur, tx)
 	})
@@ -105,16 +103,15 @@ func (b *Bolt) AuthenticateUser(username, password string) (string, bool, error)
 	return ur.UserID, true, nil
 }
 
-// CreateOauthNonce creates and returns a unique oauth nonce.
-func (b *Bolt) CreateOauthNonce(userID string, tu store.TwitchUser) (string, error) {
+// StoreOauthNonce stores the oauth nonce.
+func (b *Bolt) StoreOauthNonce(userID string, tu TwitchUser, nonce string) error {
 	switch tu {
-	case store.Streamer:
-	case store.Bot:
+	case Streamer:
+	case Bot:
 	default:
-		return "", store.ErrInvalidTwitchUserType
+		return ErrInvalidTwitchUserType
 	}
 
-	nonce := oauth.GenerateNonce()
 	nr := nonceRecord{
 		Nonce:   nonce,
 		UserID:  userID,
@@ -122,14 +119,9 @@ func (b *Bolt) CreateOauthNonce(userID string, tu store.TwitchUser) (string, err
 		Created: time.Now(),
 	}
 
-	err := b.db.Update(func(tx *bolt.Tx) error {
+	return b.db.Update(func(tx *bolt.Tx) error {
 		return upsertNonceRecord(nr, tx)
 	})
-	if err != nil {
-		return "", err
-	}
-
-	return nonce, nil
 }
 
 // OauthNonceExists tells you if the provided nonce was recently created and
@@ -148,7 +140,7 @@ func (b *Bolt) FinishOauthNonce(
 	nonce string,
 	username string,
 	userID int,
-	od store.OauthData,
+	od OauthData,
 ) error {
 	return b.db.Update(func(tx *bolt.Tx) error {
 		nr, err := getNonceRecord(nonce, tx)
@@ -162,11 +154,11 @@ func (b *Bolt) FinishOauthNonce(
 		}
 
 		switch nr.TU {
-		case store.Streamer:
+		case Streamer:
 			ur.StreamerOD = od
 			ur.StreamerUsername = username
 			ur.StreamerID = userID
-		case store.Bot:
+		case Bot:
 			ur.BotOD = od
 			ur.BotUsername = username
 			ur.BotID = userID
@@ -184,7 +176,7 @@ func (b *Bolt) FinishOauthNonce(
 }
 
 // TwitchCredentials gives you the twitch credentials for a given users.
-func (b *Bolt) TwitchCredentials(userID string) (store.TwitchCredentials, error) {
+func (b *Bolt) TwitchCredentials(userID string) (TwitchCredentials, error) {
 	var ur userRecord
 	err := b.db.View(func(tx *bolt.Tx) error {
 		var err error
@@ -192,10 +184,10 @@ func (b *Bolt) TwitchCredentials(userID string) (store.TwitchCredentials, error)
 		return err
 	})
 	if err != nil {
-		return store.TwitchCredentials{}, err
+		return TwitchCredentials{}, err
 	}
 
-	return store.TwitchCredentials{
+	return TwitchCredentials{
 		StreamerAuthenticated: ur.StreamerOD.AccessToken != "",
 		StreamerUsername:      ur.StreamerUsername,
 		StreamerPassword:      ur.StreamerOD.AccessToken,
@@ -215,10 +207,10 @@ func (b *Bolt) TwitchClearAuth(userID string) error {
 			return err
 		}
 		ur.StreamerUsername = ""
-		ur.StreamerOD = store.OauthData{}
+		ur.StreamerOD = OauthData{}
 		ur.StreamerID = 0
 		ur.BotUsername = ""
-		ur.BotOD = store.OauthData{}
+		ur.BotOD = OauthData{}
 		ur.BotID = 0
 		return upsertUserRecord(ur, tx)
 	})

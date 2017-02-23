@@ -11,6 +11,166 @@ import (
 	"github.com/jasonkeene/anubot-server/twitch"
 )
 
+type mockStore struct {
+	RegisterUserCalled chan bool
+	RegisterUserInput  struct {
+		Username, Password chan string
+	}
+	RegisterUserOutput struct {
+		UserID chan string
+		Err    chan error
+	}
+	AuthenticateUserCalled chan bool
+	AuthenticateUserInput  struct {
+		Username, Password chan string
+	}
+	AuthenticateUserOutput struct {
+		UserID        chan string
+		Authenticated chan bool
+		Err           chan error
+	}
+	StoreOauthNonceCalled chan bool
+	StoreOauthNonceInput  struct {
+		UserID chan string
+		Tu     chan store.TwitchUser
+		Nonce  chan string
+	}
+	StoreOauthNonceOutput struct {
+		Err chan error
+	}
+	OauthNonceExistsCalled chan bool
+	OauthNonceExistsInput  struct {
+		Nonce chan string
+	}
+	OauthNonceExistsOutput struct {
+		Exists chan bool
+		Err    chan error
+	}
+	FinishOauthNonceCalled chan bool
+	FinishOauthNonceInput  struct {
+		Nonce, Username chan string
+		UserID          chan int
+		Od              chan store.OauthData
+	}
+	FinishOauthNonceOutput struct {
+		Err chan error
+	}
+	TwitchCredentialsCalled chan bool
+	TwitchCredentialsInput  struct {
+		UserID chan string
+	}
+	TwitchCredentialsOutput struct {
+		Creds chan store.TwitchCredentials
+		Err   chan error
+	}
+	TwitchClearAuthCalled chan bool
+	TwitchClearAuthInput  struct {
+		UserID chan string
+	}
+	TwitchClearAuthOutput struct {
+		Err chan error
+	}
+	FetchRecentMessagesCalled chan bool
+	FetchRecentMessagesInput  struct {
+		UserID chan string
+	}
+	FetchRecentMessagesOutput struct {
+		Msgs chan []stream.RXMessage
+		Err  chan error
+	}
+}
+
+func newMockStore() *mockStore {
+	m := &mockStore{}
+	m.RegisterUserCalled = make(chan bool, 100)
+	m.RegisterUserInput.Username = make(chan string, 100)
+	m.RegisterUserInput.Password = make(chan string, 100)
+	m.RegisterUserOutput.UserID = make(chan string, 100)
+	m.RegisterUserOutput.Err = make(chan error, 100)
+	m.AuthenticateUserCalled = make(chan bool, 100)
+	m.AuthenticateUserInput.Username = make(chan string, 100)
+	m.AuthenticateUserInput.Password = make(chan string, 100)
+	m.AuthenticateUserOutput.UserID = make(chan string, 100)
+	m.AuthenticateUserOutput.Authenticated = make(chan bool, 100)
+	m.AuthenticateUserOutput.Err = make(chan error, 100)
+	m.StoreOauthNonceCalled = make(chan bool, 100)
+	m.StoreOauthNonceInput.UserID = make(chan string, 100)
+	m.StoreOauthNonceInput.Tu = make(chan store.TwitchUser, 100)
+	m.StoreOauthNonceInput.Nonce = make(chan string, 100)
+	m.StoreOauthNonceOutput.Err = make(chan error, 100)
+	m.OauthNonceExistsCalled = make(chan bool, 100)
+	m.OauthNonceExistsInput.Nonce = make(chan string, 100)
+	m.OauthNonceExistsOutput.Exists = make(chan bool, 100)
+	m.OauthNonceExistsOutput.Err = make(chan error, 100)
+	m.FinishOauthNonceCalled = make(chan bool, 100)
+	m.FinishOauthNonceInput.Nonce = make(chan string, 100)
+	m.FinishOauthNonceInput.Username = make(chan string, 100)
+	m.FinishOauthNonceInput.UserID = make(chan int, 100)
+	m.FinishOauthNonceInput.Od = make(chan store.OauthData, 100)
+	m.FinishOauthNonceOutput.Err = make(chan error, 100)
+	m.TwitchCredentialsCalled = make(chan bool, 100)
+	m.TwitchCredentialsInput.UserID = make(chan string, 100)
+	m.TwitchCredentialsOutput.Creds = make(chan store.TwitchCredentials, 100)
+	m.TwitchCredentialsOutput.Err = make(chan error, 100)
+	m.TwitchClearAuthCalled = make(chan bool, 100)
+	m.TwitchClearAuthInput.UserID = make(chan string, 100)
+	m.TwitchClearAuthOutput.Err = make(chan error, 100)
+	m.FetchRecentMessagesCalled = make(chan bool, 100)
+	m.FetchRecentMessagesInput.UserID = make(chan string, 100)
+	m.FetchRecentMessagesOutput.Msgs = make(chan []stream.RXMessage, 100)
+	m.FetchRecentMessagesOutput.Err = make(chan error, 100)
+	return m
+}
+func (m *mockStore) RegisterUser(username, password string) (userID string, err error) {
+	m.RegisterUserCalled <- true
+	m.RegisterUserInput.Username <- username
+	m.RegisterUserInput.Password <- password
+	return <-m.RegisterUserOutput.UserID, <-m.RegisterUserOutput.Err
+}
+func (m *mockStore) AuthenticateUser(username, password string) (userID string, authenticated bool, err error) {
+	m.AuthenticateUserCalled <- true
+	m.AuthenticateUserInput.Username <- username
+	m.AuthenticateUserInput.Password <- password
+	return <-m.AuthenticateUserOutput.UserID, <-m.AuthenticateUserOutput.Authenticated, <-m.AuthenticateUserOutput.Err
+}
+func (m *mockStore) StoreOauthNonce(userID string, tu store.TwitchUser, nonce string) (err error) {
+	m.StoreOauthNonceCalled <- true
+	m.StoreOauthNonceInput.UserID <- userID
+	m.StoreOauthNonceInput.Tu <- tu
+	m.StoreOauthNonceInput.Nonce <- nonce
+	return <-m.StoreOauthNonceOutput.Err
+}
+func (m *mockStore) OauthNonceExists(nonce string) (exists bool, err error) {
+	m.OauthNonceExistsCalled <- true
+	m.OauthNonceExistsInput.Nonce <- nonce
+	return <-m.OauthNonceExistsOutput.Exists, <-m.OauthNonceExistsOutput.Err
+}
+func (m *mockStore) FinishOauthNonce(nonce, username string, userID int, od store.OauthData) (err error) {
+	m.FinishOauthNonceCalled <- true
+	m.FinishOauthNonceInput.Nonce <- nonce
+	m.FinishOauthNonceInput.Username <- username
+	m.FinishOauthNonceInput.UserID <- userID
+	m.FinishOauthNonceInput.Od <- od
+	return <-m.FinishOauthNonceOutput.Err
+}
+func (m *mockStore) TwitchCredentials(userID string) (creds store.TwitchCredentials, err error) {
+	m.TwitchCredentialsCalled <- true
+	m.TwitchCredentialsInput.UserID <- userID
+	a := <-m.TwitchCredentialsOutput.Creds
+	b := <-m.TwitchCredentialsOutput.Err
+	return a, b
+}
+func (m *mockStore) TwitchClearAuth(userID string) (err error) {
+	m.TwitchClearAuthCalled <- true
+	m.TwitchClearAuthInput.UserID <- userID
+	return <-m.TwitchClearAuthOutput.Err
+}
+func (m *mockStore) FetchRecentMessages(userID string) (msgs []stream.RXMessage, err error) {
+	m.FetchRecentMessagesCalled <- true
+	m.FetchRecentMessagesInput.UserID <- userID
+	return <-m.FetchRecentMessagesOutput.Msgs, <-m.FetchRecentMessagesOutput.Err
+}
+
 type mockStreamManager struct {
 	ConnectTwitchCalled chan bool
 	ConnectTwitchInput  struct {
@@ -41,258 +201,6 @@ func (m *mockStreamManager) ConnectTwitch(user, pass, channel string) {
 func (m *mockStreamManager) Send(msg stream.TXMessage) {
 	m.SendCalled <- true
 	m.SendInput.Msg <- msg
-}
-
-type mockOauthCallbackRegistrar struct {
-	RegisterCompletionCallbackCalled chan bool
-	RegisterCompletionCallbackInput  struct {
-		Nonce chan string
-		F     chan func()
-	}
-}
-
-func newMockOauthCallbackRegistrar() *mockOauthCallbackRegistrar {
-	m := &mockOauthCallbackRegistrar{}
-	m.RegisterCompletionCallbackCalled = make(chan bool, 100)
-	m.RegisterCompletionCallbackInput.Nonce = make(chan string, 100)
-	m.RegisterCompletionCallbackInput.F = make(chan func(), 100)
-	return m
-}
-func (m *mockOauthCallbackRegistrar) RegisterCompletionCallback(nonce string, f func()) {
-	m.RegisterCompletionCallbackCalled <- true
-	m.RegisterCompletionCallbackInput.Nonce <- nonce
-	m.RegisterCompletionCallbackInput.F <- f
-}
-
-type mockStore struct {
-	RegisterUserCalled chan bool
-	RegisterUserInput  struct {
-		Username, Password chan string
-	}
-	RegisterUserOutput struct {
-		UserID chan string
-		Err    chan error
-	}
-	AuthenticateUserCalled chan bool
-	AuthenticateUserInput  struct {
-		Username, Password chan string
-	}
-	AuthenticateUserOutput struct {
-		UserID        chan string
-		Authenticated chan bool
-		Err           chan error
-	}
-	TwitchClearAuthCalled chan bool
-	TwitchClearAuthInput  struct {
-		UserID chan string
-	}
-	TwitchClearAuthOutput struct {
-		Err chan error
-	}
-	TwitchAuthenticatedCalled chan bool
-	TwitchAuthenticatedInput  struct {
-		UserID chan string
-	}
-	TwitchAuthenticatedOutput struct {
-		Authenticated chan bool
-		Err           chan error
-	}
-	TwitchStreamerAuthenticatedCalled chan bool
-	TwitchStreamerAuthenticatedInput  struct {
-		UserID chan string
-	}
-	TwitchStreamerAuthenticatedOutput struct {
-		Authenticated chan bool
-		Err           chan error
-	}
-	TwitchStreamerCredentialsCalled chan bool
-	TwitchStreamerCredentialsInput  struct {
-		UserID chan string
-	}
-	TwitchStreamerCredentialsOutput struct {
-		Username, Password chan string
-		TwitchUserID       chan int
-		Err                chan error
-	}
-	TwitchBotAuthenticatedCalled chan bool
-	TwitchBotAuthenticatedInput  struct {
-		UserID chan string
-	}
-	TwitchBotAuthenticatedOutput struct {
-		Authenticated chan bool
-		Err           chan error
-	}
-	TwitchBotCredentialsCalled chan bool
-	TwitchBotCredentialsInput  struct {
-		UserID chan string
-	}
-	TwitchBotCredentialsOutput struct {
-		Username, Password chan string
-		TwitchUserID       chan int
-		Err                chan error
-	}
-	FetchRecentMessagesCalled chan bool
-	FetchRecentMessagesInput  struct {
-		UserID chan string
-	}
-	FetchRecentMessagesOutput struct {
-		Msgs chan []stream.RXMessage
-		Err  chan error
-	}
-	CreateOauthNonceCalled chan bool
-	CreateOauthNonceInput  struct {
-		UserID chan string
-		Tu     chan store.TwitchUser
-	}
-	CreateOauthNonceOutput struct {
-		Nonce chan string
-		Err   chan error
-	}
-	OauthNonceExistsCalled chan bool
-	OauthNonceExistsInput  struct {
-		Nonce chan string
-	}
-	OauthNonceExistsOutput struct {
-		Exists chan bool
-		Err    chan error
-	}
-	FinishOauthNonceCalled chan bool
-	FinishOauthNonceInput  struct {
-		Nonce, Username chan string
-		UserID          chan int
-		Od              chan store.OauthData
-	}
-	FinishOauthNonceOutput struct {
-		Err chan error
-	}
-}
-
-func newMockStore() *mockStore {
-	m := &mockStore{}
-	m.RegisterUserCalled = make(chan bool, 100)
-	m.RegisterUserInput.Username = make(chan string, 100)
-	m.RegisterUserInput.Password = make(chan string, 100)
-	m.RegisterUserOutput.UserID = make(chan string, 100)
-	m.RegisterUserOutput.Err = make(chan error, 100)
-	m.AuthenticateUserCalled = make(chan bool, 100)
-	m.AuthenticateUserInput.Username = make(chan string, 100)
-	m.AuthenticateUserInput.Password = make(chan string, 100)
-	m.AuthenticateUserOutput.UserID = make(chan string, 100)
-	m.AuthenticateUserOutput.Authenticated = make(chan bool, 100)
-	m.AuthenticateUserOutput.Err = make(chan error, 100)
-	m.TwitchClearAuthCalled = make(chan bool, 100)
-	m.TwitchClearAuthInput.UserID = make(chan string, 100)
-	m.TwitchClearAuthOutput.Err = make(chan error, 100)
-	m.TwitchAuthenticatedCalled = make(chan bool, 100)
-	m.TwitchAuthenticatedInput.UserID = make(chan string, 100)
-	m.TwitchAuthenticatedOutput.Authenticated = make(chan bool, 100)
-	m.TwitchAuthenticatedOutput.Err = make(chan error, 100)
-	m.TwitchStreamerAuthenticatedCalled = make(chan bool, 100)
-	m.TwitchStreamerAuthenticatedInput.UserID = make(chan string, 100)
-	m.TwitchStreamerAuthenticatedOutput.Authenticated = make(chan bool, 100)
-	m.TwitchStreamerAuthenticatedOutput.Err = make(chan error, 100)
-	m.TwitchStreamerCredentialsCalled = make(chan bool, 100)
-	m.TwitchStreamerCredentialsInput.UserID = make(chan string, 100)
-	m.TwitchStreamerCredentialsOutput.Username = make(chan string, 100)
-	m.TwitchStreamerCredentialsOutput.Password = make(chan string, 100)
-	m.TwitchStreamerCredentialsOutput.TwitchUserID = make(chan int, 100)
-	m.TwitchStreamerCredentialsOutput.Err = make(chan error, 100)
-	m.TwitchBotAuthenticatedCalled = make(chan bool, 100)
-	m.TwitchBotAuthenticatedInput.UserID = make(chan string, 100)
-	m.TwitchBotAuthenticatedOutput.Authenticated = make(chan bool, 100)
-	m.TwitchBotAuthenticatedOutput.Err = make(chan error, 100)
-	m.TwitchBotCredentialsCalled = make(chan bool, 100)
-	m.TwitchBotCredentialsInput.UserID = make(chan string, 100)
-	m.TwitchBotCredentialsOutput.Username = make(chan string, 100)
-	m.TwitchBotCredentialsOutput.Password = make(chan string, 100)
-	m.TwitchBotCredentialsOutput.TwitchUserID = make(chan int, 100)
-	m.TwitchBotCredentialsOutput.Err = make(chan error, 100)
-	m.FetchRecentMessagesCalled = make(chan bool, 100)
-	m.FetchRecentMessagesInput.UserID = make(chan string, 100)
-	m.FetchRecentMessagesOutput.Msgs = make(chan []stream.RXMessage, 100)
-	m.FetchRecentMessagesOutput.Err = make(chan error, 100)
-	m.CreateOauthNonceCalled = make(chan bool, 100)
-	m.CreateOauthNonceInput.UserID = make(chan string, 100)
-	m.CreateOauthNonceInput.Tu = make(chan store.TwitchUser, 100)
-	m.CreateOauthNonceOutput.Nonce = make(chan string, 100)
-	m.CreateOauthNonceOutput.Err = make(chan error, 100)
-	m.OauthNonceExistsCalled = make(chan bool, 100)
-	m.OauthNonceExistsInput.Nonce = make(chan string, 100)
-	m.OauthNonceExistsOutput.Exists = make(chan bool, 100)
-	m.OauthNonceExistsOutput.Err = make(chan error, 100)
-	m.FinishOauthNonceCalled = make(chan bool, 100)
-	m.FinishOauthNonceInput.Nonce = make(chan string, 100)
-	m.FinishOauthNonceInput.Username = make(chan string, 100)
-	m.FinishOauthNonceInput.UserID = make(chan int, 100)
-	m.FinishOauthNonceInput.Od = make(chan store.OauthData, 100)
-	m.FinishOauthNonceOutput.Err = make(chan error, 100)
-	return m
-}
-func (m *mockStore) RegisterUser(username, password string) (userID string, err error) {
-	m.RegisterUserCalled <- true
-	m.RegisterUserInput.Username <- username
-	m.RegisterUserInput.Password <- password
-	return <-m.RegisterUserOutput.UserID, <-m.RegisterUserOutput.Err
-}
-func (m *mockStore) AuthenticateUser(username, password string) (userID string, authenticated bool, err error) {
-	m.AuthenticateUserCalled <- true
-	m.AuthenticateUserInput.Username <- username
-	m.AuthenticateUserInput.Password <- password
-	return <-m.AuthenticateUserOutput.UserID, <-m.AuthenticateUserOutput.Authenticated, <-m.AuthenticateUserOutput.Err
-}
-func (m *mockStore) TwitchClearAuth(userID string) (err error) {
-	m.TwitchClearAuthCalled <- true
-	m.TwitchClearAuthInput.UserID <- userID
-	return <-m.TwitchClearAuthOutput.Err
-}
-func (m *mockStore) TwitchAuthenticated(userID string) (authenticated bool, err error) {
-	m.TwitchAuthenticatedCalled <- true
-	m.TwitchAuthenticatedInput.UserID <- userID
-	return <-m.TwitchAuthenticatedOutput.Authenticated, <-m.TwitchAuthenticatedOutput.Err
-}
-func (m *mockStore) TwitchStreamerAuthenticated(userID string) (authenticated bool, err error) {
-	m.TwitchStreamerAuthenticatedCalled <- true
-	m.TwitchStreamerAuthenticatedInput.UserID <- userID
-	return <-m.TwitchStreamerAuthenticatedOutput.Authenticated, <-m.TwitchStreamerAuthenticatedOutput.Err
-}
-func (m *mockStore) TwitchStreamerCredentials(userID string) (username, password string, twitchUserID int, err error) {
-	m.TwitchStreamerCredentialsCalled <- true
-	m.TwitchStreamerCredentialsInput.UserID <- userID
-	return <-m.TwitchStreamerCredentialsOutput.Username, <-m.TwitchStreamerCredentialsOutput.Password, <-m.TwitchStreamerCredentialsOutput.TwitchUserID, <-m.TwitchStreamerCredentialsOutput.Err
-}
-func (m *mockStore) TwitchBotAuthenticated(userID string) (authenticated bool, err error) {
-	m.TwitchBotAuthenticatedCalled <- true
-	m.TwitchBotAuthenticatedInput.UserID <- userID
-	return <-m.TwitchBotAuthenticatedOutput.Authenticated, <-m.TwitchBotAuthenticatedOutput.Err
-}
-func (m *mockStore) TwitchBotCredentials(userID string) (username, password string, twitchUserID int, err error) {
-	m.TwitchBotCredentialsCalled <- true
-	m.TwitchBotCredentialsInput.UserID <- userID
-	return <-m.TwitchBotCredentialsOutput.Username, <-m.TwitchBotCredentialsOutput.Password, <-m.TwitchBotCredentialsOutput.TwitchUserID, <-m.TwitchBotCredentialsOutput.Err
-}
-func (m *mockStore) FetchRecentMessages(userID string) (msgs []stream.RXMessage, err error) {
-	m.FetchRecentMessagesCalled <- true
-	m.FetchRecentMessagesInput.UserID <- userID
-	return <-m.FetchRecentMessagesOutput.Msgs, <-m.FetchRecentMessagesOutput.Err
-}
-func (m *mockStore) CreateOauthNonce(userID string, tu store.TwitchUser) (nonce string, err error) {
-	m.CreateOauthNonceCalled <- true
-	m.CreateOauthNonceInput.UserID <- userID
-	m.CreateOauthNonceInput.Tu <- tu
-	return <-m.CreateOauthNonceOutput.Nonce, <-m.CreateOauthNonceOutput.Err
-}
-func (m *mockStore) OauthNonceExists(nonce string) (exists bool, err error) {
-	m.OauthNonceExistsCalled <- true
-	m.OauthNonceExistsInput.Nonce <- nonce
-	return <-m.OauthNonceExistsOutput.Exists, <-m.OauthNonceExistsOutput.Err
-}
-func (m *mockStore) FinishOauthNonce(nonce, username string, userID int, od store.OauthData) (err error) {
-	m.FinishOauthNonceCalled <- true
-	m.FinishOauthNonceInput.Nonce <- nonce
-	m.FinishOauthNonceInput.Username <- username
-	m.FinishOauthNonceInput.UserID <- userID
-	m.FinishOauthNonceInput.Od <- od
-	return <-m.FinishOauthNonceOutput.Err
 }
 
 type mockTwitchClient struct {
@@ -375,4 +283,25 @@ func (m *mockBTTVClient) Emoji(channel string) (emoji map[string]string, err err
 	m.EmojiCalled <- true
 	m.EmojiInput.Channel <- channel
 	return <-m.EmojiOutput.Emoji, <-m.EmojiOutput.Err
+}
+
+type mockOauthCallbackRegistrar struct {
+	RegisterCompletionCallbackCalled chan bool
+	RegisterCompletionCallbackInput  struct {
+		Nonce chan string
+		F     chan func()
+	}
+}
+
+func newMockOauthCallbackRegistrar() *mockOauthCallbackRegistrar {
+	m := &mockOauthCallbackRegistrar{}
+	m.RegisterCompletionCallbackCalled = make(chan bool, 100)
+	m.RegisterCompletionCallbackInput.Nonce = make(chan string, 100)
+	m.RegisterCompletionCallbackInput.F = make(chan func(), 100)
+	return m
+}
+func (m *mockOauthCallbackRegistrar) RegisterCompletionCallback(nonce string, f func()) {
+	m.RegisterCompletionCallbackCalled <- true
+	m.RegisterCompletionCallbackInput.Nonce <- nonce
+	m.RegisterCompletionCallbackInput.F <- f
 }
