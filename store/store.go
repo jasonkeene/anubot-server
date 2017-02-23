@@ -25,24 +25,9 @@ type Store interface {
 	// storing the oauth data.
 	FinishOauthNonce(nonce, username string, userID int, od OauthData) (err error)
 
-	// TwitchStreamerAuthenticated tells you if the user has authenticated with
-	// twitch and that we have valid oauth credentials.
-	TwitchStreamerAuthenticated(userID string) (authenticated bool, err error)
-
-	// TwitchStreamerCredentials gives you the credentials for the streamer
-	// user.
-	TwitchStreamerCredentials(userID string) (username, password string, twitchUserID int, err error)
-
-	// TwitchBotAuthenticated tells you if the user has authenticated his bot
-	// with twitch and that we have valid oauth credentials.
-	TwitchBotAuthenticated(userID string) (authenticated bool, err error)
-
-	// TwitchBotCredentials gives you the credentials for the streamer user.
-	TwitchBotCredentials(userID string) (username, password string, twitchUserID int, err error)
-
-	// TwitchAuthenticated tells you if the user has authenticated his bot and
-	// his streamer user with twitch and that we have valid oauth credentials.
-	TwitchAuthenticated(userID string) (authenticated bool, err error)
+	// TwitchCredentials gives you the status of the user's authentication
+	// with twitch.
+	TwitchCredentials(userID string) (creds TwitchCredentials, err error)
 
 	// TwitchClearAuth removes all the auth data for twitch for the user.
 	TwitchClearAuth(userID string) (err error)
@@ -57,4 +42,17 @@ type Store interface {
 	// QueryMessages allows the user to search for messages that match a
 	// search string.
 	QueryMessages(userID, search string) (msgs []stream.RXMessage, err error)
+}
+
+// TwitchCredentials represents a user's twitch authentication information for
+// both streamer and bot users.
+type TwitchCredentials struct {
+	StreamerAuthenticated bool
+	StreamerUsername      string
+	StreamerPassword      string
+	StreamerTwitchUserID  int
+	BotAuthenticated      bool
+	BotUsername           string
+	BotPassword           string
+	BotTwitchUserID       int
 }

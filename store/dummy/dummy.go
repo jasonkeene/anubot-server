@@ -2,6 +2,8 @@ package dummy
 
 import (
 	"errors"
+	"sort"
+	"strconv"
 	"sync"
 	"time"
 
@@ -14,16 +16,18 @@ import (
 
 // Dummy is a store backend that stores everything in memory.
 type Dummy struct {
-	mu     sync.Mutex
-	users  users
-	nonces map[string]nonceRecord
+	mu       sync.Mutex
+	users    users
+	nonces   map[string]nonceRecord
+	messages map[string][]stream.RXMessage
 }
 
 // New creates a new Dummy store.
 func New() *Dummy {
 	return &Dummy{
-		users:  make(users),
-		nonces: make(map[string]nonceRecord),
+		users:    make(users),
+		nonces:   make(map[string]nonceRecord),
+		messages: make(map[string][]stream.RXMessage),
 	}
 }
 
@@ -116,9 +120,11 @@ func (d *Dummy) FinishOauthNonce(
 	case store.Streamer:
 		ur.streamerOD = od
 		ur.streamerUsername = username
+		ur.streamerID = userID
 	case store.Bot:
 		ur.botOD = od
 		ur.botUsername = username
+		ur.botID = userID
 	default:
 		return errors.New("bad twitch user type, this should never happen")
 	}
@@ -128,48 +134,21 @@ func (d *Dummy) FinishOauthNonce(
 	return nil
 }
 
-// TwitchStreamerAuthenticated tells you if the user has authenticated with
-// twitch and that we have valid oauth credentials.
-func (d *Dummy) TwitchStreamerAuthenticated(userID string) (bool, error) {
+// TwitchCredentials gives you the twitch credentials for a given users.
+func (d *Dummy) TwitchCredentials(userID string) (store.TwitchCredentials, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	ur := d.users[userID]
-	return ur.streamerOD.AccessToken != "", nil
-}
-
-// TwitchStreamerCredentials gives you the credentials for the streamer user.
-func (d *Dummy) TwitchStreamerCredentials(userID string) (string, string, int, error) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	ur := d.users[userID]
-	return ur.streamerUsername, ur.streamerOD.AccessToken, 0, nil
-}
-
-// TwitchBotAuthenticated tells you if the user has authenticated his bot with
-// twitch and that we have valid oauth credentials.
-func (d *Dummy) TwitchBotAuthenticated(userID string) (bool, error) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	ur := d.users[userID]
-	return ur.botOD.AccessToken != "", nil
-}
-
-// TwitchBotCredentials gives you the credentials for the streamer user.
-func (d *Dummy) TwitchBotCredentials(userID string) (string, string, int, error) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	ur := d.users[userID]
-	return ur.botUsername, ur.botOD.AccessToken, 0, nil
-}
-
-// TwitchAuthenticated tells you if the user has authenticated his bot and
-// his streamer user with twitch and that we have valid oauth credentials.
-func (d *Dummy) TwitchAuthenticated(userID string) (bool, error) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	ur := d.users[userID]
-	return ur.streamerOD.AccessToken != "" &&
-		ur.botOD.AccessToken != "", nil
+	return store.TwitchCredentials{
+		StreamerAuthenticated: ur.streamerOD.AccessToken != "",
+		StreamerUsername:      ur.streamerUsername,
+		StreamerPassword:      ur.streamerOD.AccessToken,
+		StreamerTwitchUserID:  ur.streamerID,
+		BotAuthenticated:      ur.botOD.AccessToken != "",
+		BotUsername:           ur.botUsername,
+		BotPassword:           ur.botOD.AccessToken,
+		BotTwitchUserID:       ur.botID,
+	}, nil
 }
 
 // TwitchClearAuth removes all the auth data for twitch for the user.
@@ -179,20 +158,54 @@ func (d *Dummy) TwitchClearAuth(userID string) error {
 	ur := d.users[userID]
 	ur.streamerOD = store.OauthData{}
 	ur.streamerUsername = ""
+	ur.streamerID = 0
 	ur.botOD = store.OauthData{}
 	ur.botUsername = ""
+	ur.botID = 0
+	d.users[userID] = ur
 	return nil
 }
 
 // StoreMessage stores a message for a given user for later searching and
 // scrollback history.
 func (d *Dummy) StoreMessage(msg stream.RXMessage) error {
-	panic("not implemented")
+	key, err := messageKey(msg)
+	if err != nil {
+		return err
+	}
+	// TODO: dedupe messages?
+	d.messages[key] = append(d.messages[key], msg)
+	return nil
 }
 
 // FetchRecentMessages gets the recent messages for the user's channel.
 func (d *Dummy) FetchRecentMessages(userID string) ([]stream.RXMessage, error) {
-	panic("not implemented")
+	creds, err := d.TwitchCredentials(userID)
+	if err != nil {
+		return nil, err
+	}
+	if !creds.StreamerAuthenticated || !creds.BotAuthenticated {
+		return nil, errors.New("user is not authenticated with twitch")
+	}
+
+	messages := d.messages["twitch:"+strconv.Itoa(creds.StreamerTwitchUserID)]
+	messages = append(
+		messages,
+		d.messages["twitch:"+strconv.Itoa(creds.BotTwitchUserID)]...,
+	)
+
+	sort.Slice(messages, func(i, j int) bool {
+		return messages[i].Twitch.Line.Time.Before(messages[j].Twitch.Line.Time)
+	})
+
+	return messages[:min(len(messages), 500)], nil
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // QueryMessages allows the user to search for messages that match a search
