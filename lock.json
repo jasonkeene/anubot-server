@@ -1,5 +1,5 @@
 {
-    "memo": "15794b4abdb804083692c3a0748369c93ed4193c0b60cbf65a65736cacb60df7",
+    "memo": "9bbf7e6f4b86ac506faf385fda6c64679d084260cd060be049b71984ec45a484",
     "projects": [
         {
             "name": "github.com/a8m/expect",
@@ -83,6 +83,14 @@
             ]
         },
         {
+            "name": "github.com/lib/pq",
+            "branch": "master",
+            "revision": "ba5d4f7a35561e22fbdf7a39aa0070f4d460cfc0",
+            "packages": [
+                "."
+            ]
+        },
+        {
             "name": "github.com/magiconair/properties",
             "version": "v1.7.0",
             "revision": "c265cfa48dda6474e208715ca93e987829f572f8",
@@ -141,7 +149,7 @@
         {
             "name": "github.com/spf13/cast",
             "branch": "master",
-            "revision": "d1139bab1c07d5ad390a65e7305876b3c1a8370b",
+            "revision": "f820543c3592e283e311a60d2a600a664e39f6f7",
             "packages": [
                 "."
             ]
@@ -181,16 +189,15 @@
         {
             "name": "golang.org/x/net",
             "branch": "master",
-            "revision": "6b27048ae5e6ad1ef927e72e437531493de612fe",
+            "revision": "10c134ea0df15f7e34d789338c7a2d76cc7a3ab9",
             "packages": [
-                "proxy",
-                "websocket"
+                "proxy"
             ]
         },
         {
             "name": "golang.org/x/sys",
             "branch": "master",
-            "revision": "075e574b89e4c2d22f2286a7e2b919519c6f3547",
+            "revision": "e4594059fe4cde2daf423055a596c2cd1e6c9adf",
             "packages": [
                 "unix"
             ]
@@ -198,7 +205,7 @@
         {
             "name": "golang.org/x/text",
             "branch": "master",
-            "revision": "85c29909967d7f171f821e7a42e7b7af76fb9598",
+            "revision": "4687d739464a2d0af89a25be0318456e0776f3ef",
             "packages": [
                 "transform",
                 "unicode/norm"

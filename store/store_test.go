@@ -1,6 +1,7 @@
 package store_test
 
 import (
+	"database/sql"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -47,12 +48,12 @@ func TestThatUsersCanAuthenticate(t *testing.T) {
 		userID, authenticated, err := b.AuthenticateUser("test-user", "bad-pass")
 		expect(err).To.Be.Nil()
 		expect(userID).To.Equal("")
-		expect(authenticated).Not.To.Be.Ok()
+		expect(authenticated).To.Be.False()
 
 		userID, authenticated, err = b.AuthenticateUser("test-user", "test-pass")
 		expect(err).To.Be.Nil()
 		expect(userID).To.Equal(expectedUserID)
-		expect(authenticated).To.Be.Ok()
+		expect(authenticated).To.Be.True()
 	}
 }
 
@@ -197,20 +198,30 @@ func TestThatYouCanStoreMessages(t *testing.T) {
 
 func setupBackends(t *testing.T) ([]store.Store, func()) {
 	bolt, cleanup := setupBolt(t)
-	return []store.Store{
-			bolt,
-			store.NewDummy(),
-		}, func() {
+	stores := []store.Store{
+		bolt,
+		store.NewDummy(),
+	}
+	cleanups := []func(){
+		cleanup,
+	}
+	if os.Getenv("ANUBOT_TEST_POSTGRES") != "" {
+		pg, cleanup := setupPostgres(t)
+		stores = append(stores, pg)
+		cleanups = append(cleanups, cleanup)
+	}
+	return stores, func() {
+		for _, cleanup := range cleanups {
 			cleanup()
 		}
+	}
 }
 
 func setupBolt(t *testing.T) (*store.Bolt, func()) {
 	path, cleanup := tempFile(t)
 	b, err := store.NewBolt(path)
 	if err != nil {
-		fmt.Println(err.Error())
-		t.FailNow()
+		t.Fatal(err)
 	}
 	return b, func() {
 		err := b.Close()
@@ -220,6 +231,50 @@ func setupBolt(t *testing.T) (*store.Bolt, func()) {
 		}
 		cleanup()
 	}
+}
+
+func setupPostgres(t *testing.T) (*store.Postgres, func()) {
+	pg, err := store.NewPostgres(os.Getenv("ANUBOT_TEST_POSTGRES"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return pg, func() {
+		err := truncatePostgres()
+		if err != nil {
+			log.Printf("unable to truncate postgres: %s", err)
+			t.Fail()
+		}
+		err = pg.Close()
+		if err != nil {
+			log.Printf("unable to close postgres: %s", err)
+			t.FailNow()
+		}
+	}
+}
+
+func truncatePostgres() error {
+	db, err := sql.Open("postgres", os.Getenv("ANUBOT_TEST_POSTGRES"))
+	if err != nil {
+		return err
+	}
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	tables := []string{
+		"message",
+		"nonce",
+		"user",
+	}
+	for _, table := range tables {
+		_, err := tx.Exec(`TRUNCATE TABLE "` + table + `" CASCADE`)
+		if err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }
 
 func tempFile(t *testing.T) (string, func()) {
