@@ -22,7 +22,7 @@ type Store interface {
 
 	StoreOauthNonce(userID string, tu store.TwitchUser, nonce string) (err error)
 	OauthNonceExists(nonce string) (exists bool, err error)
-	FinishOauthNonce(nonce, username string, userID int, od store.OauthData) (err error)
+	FinishOauthNonce(nonce, twitchUsername string, twitchUserID int, od store.OauthData) (err error)
 
 	TwitchCredentials(userID string) (creds store.TwitchCredentials, err error)
 	TwitchClearAuth(userID string) (err error)

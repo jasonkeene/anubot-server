@@ -178,7 +178,7 @@ func (p *Postgres) OauthNonceExists(nonce string) (exists bool, err error) {
 
 // FinishOauthNonce completes the oauth flow, removing the nonce and storing
 // the oauth data.
-func (p *Postgres) FinishOauthNonce(nonce string, username string, twitchUserID int, od OauthData) (err error) {
+func (p *Postgres) FinishOauthNonce(nonce, twitchUsername string, twitchUserID int, od OauthData) (err error) {
 	odJSON, err := json.Marshal(od)
 	if err != nil {
 		return err
@@ -227,7 +227,7 @@ func (p *Postgres) FinishOauthNonce(nonce string, username string, twitchUserID 
 		defer ustmt.Close()
 	}
 
-	_, err = ustmt.Exec(userID, twitchUserID, username, box)
+	_, err = ustmt.Exec(userID, twitchUserID, twitchUsername, box)
 	if err != nil {
 		return err
 	}

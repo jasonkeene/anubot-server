@@ -101,8 +101,8 @@ func (d *Dummy) OauthNonceExists(nonce string) (bool, error) {
 // the oauth data.
 func (d *Dummy) FinishOauthNonce(
 	nonce string,
-	username string,
-	userID int,
+	twitchUsername string,
+	twitchUserID int,
 	od OauthData,
 ) error {
 	d.mu.Lock()
@@ -117,12 +117,12 @@ func (d *Dummy) FinishOauthNonce(
 	switch nr.TU {
 	case Streamer:
 		ur.StreamerOD = od
-		ur.StreamerUsername = username
-		ur.StreamerID = userID
+		ur.StreamerUsername = twitchUsername
+		ur.StreamerID = twitchUserID
 	case Bot:
 		ur.BotOD = od
-		ur.BotUsername = username
-		ur.BotID = userID
+		ur.BotUsername = twitchUsername
+		ur.BotID = twitchUserID
 	default:
 		return errors.New("bad twitch user type, this should never happen")
 	}

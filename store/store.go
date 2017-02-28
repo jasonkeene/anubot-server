@@ -23,7 +23,7 @@ type Store interface {
 
 	// FinishOauthNonce completes the oauth flow, removing the nonce and
 	// storing the oauth data.
-	FinishOauthNonce(nonce, username string, userID int, od OauthData) (err error)
+	FinishOauthNonce(nonce, twitchUsername string, twitchUserID int, od OauthData) (err error)
 
 	// TwitchCredentials gives you the status of the user's authentication
 	// with twitch.

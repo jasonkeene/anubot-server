@@ -39,7 +39,7 @@ Done authenticating with Twitch.
 // NonceStore is used to to store and operate on oauth nonces.
 type NonceStore interface {
 	OauthNonceExists(nonce string) (exists bool, err error)
-	FinishOauthNonce(nonce, username string, userID int, od store.OauthData) (err error)
+	FinishOauthNonce(nonce, twitchUsername string, twitchUserID int, od store.OauthData) (err error)
 }
 
 const (

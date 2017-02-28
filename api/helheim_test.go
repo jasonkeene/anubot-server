@@ -48,9 +48,9 @@ type mockStore struct {
 	}
 	FinishOauthNonceCalled chan bool
 	FinishOauthNonceInput  struct {
-		Nonce, Username chan string
-		UserID          chan int
-		Od              chan store.OauthData
+		Nonce, TwitchUsername chan string
+		TwitchUserID          chan int
+		Od                    chan store.OauthData
 	}
 	FinishOauthNonceOutput struct {
 		Err chan error
@@ -104,8 +104,8 @@ func newMockStore() *mockStore {
 	m.OauthNonceExistsOutput.Err = make(chan error, 100)
 	m.FinishOauthNonceCalled = make(chan bool, 100)
 	m.FinishOauthNonceInput.Nonce = make(chan string, 100)
-	m.FinishOauthNonceInput.Username = make(chan string, 100)
-	m.FinishOauthNonceInput.UserID = make(chan int, 100)
+	m.FinishOauthNonceInput.TwitchUsername = make(chan string, 100)
+	m.FinishOauthNonceInput.TwitchUserID = make(chan int, 100)
 	m.FinishOauthNonceInput.Od = make(chan store.OauthData, 100)
 	m.FinishOauthNonceOutput.Err = make(chan error, 100)
 	m.TwitchCredentialsCalled = make(chan bool, 100)
@@ -145,20 +145,18 @@ func (m *mockStore) OauthNonceExists(nonce string) (exists bool, err error) {
 	m.OauthNonceExistsInput.Nonce <- nonce
 	return <-m.OauthNonceExistsOutput.Exists, <-m.OauthNonceExistsOutput.Err
 }
-func (m *mockStore) FinishOauthNonce(nonce, username string, userID int, od store.OauthData) (err error) {
+func (m *mockStore) FinishOauthNonce(nonce, twitchUsername string, twitchUserID int, od store.OauthData) (err error) {
 	m.FinishOauthNonceCalled <- true
 	m.FinishOauthNonceInput.Nonce <- nonce
-	m.FinishOauthNonceInput.Username <- username
-	m.FinishOauthNonceInput.UserID <- userID
+	m.FinishOauthNonceInput.TwitchUsername <- twitchUsername
+	m.FinishOauthNonceInput.TwitchUserID <- twitchUserID
 	m.FinishOauthNonceInput.Od <- od
 	return <-m.FinishOauthNonceOutput.Err
 }
 func (m *mockStore) TwitchCredentials(userID string) (creds store.TwitchCredentials, err error) {
 	m.TwitchCredentialsCalled <- true
 	m.TwitchCredentialsInput.UserID <- userID
-	a := <-m.TwitchCredentialsOutput.Creds
-	b := <-m.TwitchCredentialsOutput.Err
-	return a, b
+	return <-m.TwitchCredentialsOutput.Creds, <-m.TwitchCredentialsOutput.Err
 }
 func (m *mockStore) TwitchClearAuth(userID string) (err error) {
 	m.TwitchClearAuthCalled <- true
@@ -171,36 +169,29 @@ func (m *mockStore) FetchRecentMessages(userID string) (msgs []stream.RXMessage,
 	return <-m.FetchRecentMessagesOutput.Msgs, <-m.FetchRecentMessagesOutput.Err
 }
 
-type mockStreamManager struct {
-	ConnectTwitchCalled chan bool
-	ConnectTwitchInput  struct {
-		User, Pass, Channel chan string
+type mockBTTVClient struct {
+	EmojiCalled chan bool
+	EmojiInput  struct {
+		Channel chan string
 	}
-	SendCalled chan bool
-	SendInput  struct {
-		Msg chan stream.TXMessage
+	EmojiOutput struct {
+		Emoji chan map[string]string
+		Err   chan error
 	}
 }
 
-func newMockStreamManager() *mockStreamManager {
-	m := &mockStreamManager{}
-	m.ConnectTwitchCalled = make(chan bool, 100)
-	m.ConnectTwitchInput.User = make(chan string, 100)
-	m.ConnectTwitchInput.Pass = make(chan string, 100)
-	m.ConnectTwitchInput.Channel = make(chan string, 100)
-	m.SendCalled = make(chan bool, 100)
-	m.SendInput.Msg = make(chan stream.TXMessage, 100)
+func newMockBTTVClient() *mockBTTVClient {
+	m := &mockBTTVClient{}
+	m.EmojiCalled = make(chan bool, 100)
+	m.EmojiInput.Channel = make(chan string, 100)
+	m.EmojiOutput.Emoji = make(chan map[string]string, 100)
+	m.EmojiOutput.Err = make(chan error, 100)
 	return m
 }
-func (m *mockStreamManager) ConnectTwitch(user, pass, channel string) {
-	m.ConnectTwitchCalled <- true
-	m.ConnectTwitchInput.User <- user
-	m.ConnectTwitchInput.Pass <- pass
-	m.ConnectTwitchInput.Channel <- channel
-}
-func (m *mockStreamManager) Send(msg stream.TXMessage) {
-	m.SendCalled <- true
-	m.SendInput.Msg <- msg
+func (m *mockBTTVClient) Emoji(channel string) (emoji map[string]string, err error) {
+	m.EmojiCalled <- true
+	m.EmojiInput.Channel <- channel
+	return <-m.EmojiOutput.Emoji, <-m.EmojiOutput.Err
 }
 
 type mockTwitchClient struct {
@@ -260,29 +251,36 @@ func (m *mockTwitchClient) UpdateDescription(status, game, channel, token string
 	return <-m.UpdateDescriptionOutput.Err
 }
 
-type mockBTTVClient struct {
-	EmojiCalled chan bool
-	EmojiInput  struct {
-		Channel chan string
+type mockStreamManager struct {
+	ConnectTwitchCalled chan bool
+	ConnectTwitchInput  struct {
+		User, Pass, Channel chan string
 	}
-	EmojiOutput struct {
-		Emoji chan map[string]string
-		Err   chan error
+	SendCalled chan bool
+	SendInput  struct {
+		Msg chan stream.TXMessage
 	}
 }
 
-func newMockBTTVClient() *mockBTTVClient {
-	m := &mockBTTVClient{}
-	m.EmojiCalled = make(chan bool, 100)
-	m.EmojiInput.Channel = make(chan string, 100)
-	m.EmojiOutput.Emoji = make(chan map[string]string, 100)
-	m.EmojiOutput.Err = make(chan error, 100)
+func newMockStreamManager() *mockStreamManager {
+	m := &mockStreamManager{}
+	m.ConnectTwitchCalled = make(chan bool, 100)
+	m.ConnectTwitchInput.User = make(chan string, 100)
+	m.ConnectTwitchInput.Pass = make(chan string, 100)
+	m.ConnectTwitchInput.Channel = make(chan string, 100)
+	m.SendCalled = make(chan bool, 100)
+	m.SendInput.Msg = make(chan stream.TXMessage, 100)
 	return m
 }
-func (m *mockBTTVClient) Emoji(channel string) (emoji map[string]string, err error) {
-	m.EmojiCalled <- true
-	m.EmojiInput.Channel <- channel
-	return <-m.EmojiOutput.Emoji, <-m.EmojiOutput.Err
+func (m *mockStreamManager) ConnectTwitch(user, pass, channel string) {
+	m.ConnectTwitchCalled <- true
+	m.ConnectTwitchInput.User <- user
+	m.ConnectTwitchInput.Pass <- pass
+	m.ConnectTwitchInput.Channel <- channel
+}
+func (m *mockStreamManager) Send(msg stream.TXMessage) {
+	m.SendCalled <- true
+	m.SendInput.Msg <- msg
 }
 
 type mockOauthCallbackRegistrar struct {

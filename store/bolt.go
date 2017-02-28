@@ -138,8 +138,8 @@ func (b *Bolt) OauthNonceExists(nonce string) (bool, error) {
 // the oauth data.
 func (b *Bolt) FinishOauthNonce(
 	nonce string,
-	username string,
-	userID int,
+	twitchUsername string,
+	twitchUserID int,
 	od OauthData,
 ) error {
 	return b.db.Update(func(tx *bolt.Tx) error {
@@ -156,12 +156,12 @@ func (b *Bolt) FinishOauthNonce(
 		switch nr.TU {
 		case Streamer:
 			ur.StreamerOD = od
-			ur.StreamerUsername = username
-			ur.StreamerID = userID
+			ur.StreamerUsername = twitchUsername
+			ur.StreamerID = twitchUserID
 		case Bot:
 			ur.BotOD = od
-			ur.BotUsername = username
-			ur.BotID = userID
+			ur.BotUsername = twitchUsername
+			ur.BotID = twitchUserID
 		default:
 			return errors.New("bad twitch user type, this should never happen")
 		}
