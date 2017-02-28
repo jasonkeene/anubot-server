@@ -234,7 +234,14 @@ func setupBolt(t *testing.T) (*store.Bolt, func()) {
 }
 
 func setupPostgres(t *testing.T) (*store.Postgres, func()) {
-	pg, err := store.NewPostgres(os.Getenv("ANUBOT_TEST_POSTGRES"))
+	pg, err := store.NewPostgres(
+		os.Getenv("ANUBOT_TEST_POSTGRES"),
+		randomKey(),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = pg.Ping()
 	if err != nil {
 		t.Fatal(err)
 	}

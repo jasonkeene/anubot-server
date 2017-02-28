@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 
+	"golang.org/x/crypto/chacha20poly1305"
+
 	// Import pq driver for registration side effects.
 	_ "github.com/lib/pq"
 	uuid "github.com/satori/go.uuid"
@@ -14,22 +16,30 @@ import (
 
 // Postgres is a store backend for the postgres database.
 type Postgres struct {
-	db *sql.DB
+	db  *sql.DB
+	key []byte
 }
 
 // NewPostgres creates a new postgres store.
-func NewPostgres(url string) (*Postgres, error) {
+func NewPostgres(url string, key []byte) (*Postgres, error) {
+	_, err := chacha20poly1305.New(key)
+	if err != nil {
+		return nil, err
+	}
 	db, err := sql.Open("postgres", url)
 	if err != nil {
 		return nil, err
 	}
-	err = db.Ping()
-	if err != nil {
-		return nil, err
-	}
 	return &Postgres{
-		db: db,
+		db:  db,
+		key: key,
 	}, nil
+}
+
+// Ping verifies a connection to the database is still alive,
+// establishing a connection if necessary.
+func (p *Postgres) Ping() (err error) {
+	return p.db.Ping()
 }
 
 // Close closes the underlying sql.DB.
@@ -173,7 +183,10 @@ func (p *Postgres) FinishOauthNonce(nonce string, username string, twitchUserID 
 	if err != nil {
 		return err
 	}
-	// TODO: encrypt oauth data
+	box, err := Encrypt(odJSON, p.key)
+	if err != nil {
+		return err
+	}
 
 	tx, err := p.db.Begin()
 	if err != nil {
@@ -214,7 +227,7 @@ func (p *Postgres) FinishOauthNonce(nonce string, username string, twitchUserID 
 		defer ustmt.Close()
 	}
 
-	_, err = ustmt.Exec(userID, twitchUserID, username, odJSON)
+	_, err = ustmt.Exec(userID, twitchUserID, username, box)
 	if err != nil {
 		return err
 	}
@@ -249,10 +262,10 @@ func (p *Postgres) TwitchCredentials(userID string) (creds TwitchCredentials, er
 	var (
 		streamerID        int
 		streamerUsername  string
-		streamerOauthData []byte
+		streamerOauthData string
 		botID             int
 		botUsername       string
-		botOauthData      []byte
+		botOauthData      string
 	)
 	err = stmt.QueryRow(userID).Scan(
 		&streamerID,
@@ -272,9 +285,12 @@ func (p *Postgres) TwitchCredentials(userID string) (creds TwitchCredentials, er
 	if len(streamerOauthData) == 0 {
 		return TwitchCredentials{}, nil
 	}
-	// TODO: decrypt oauth data
+	streamerODPlain, err := Decrypt(streamerOauthData, p.key)
+	if err != nil {
+		return TwitchCredentials{}, err
+	}
 	var streamerOD OauthData
-	err = json.Unmarshal(streamerOauthData, &streamerOD)
+	err = json.Unmarshal(streamerODPlain, &streamerOD)
 	if err != nil {
 		return TwitchCredentials{}, err
 	}
@@ -287,9 +303,12 @@ func (p *Postgres) TwitchCredentials(userID string) (creds TwitchCredentials, er
 	if len(botOauthData) == 0 {
 		return creds, nil
 	}
-	// TODO: decrypt oauth data
+	botODPlain, err := Decrypt(botOauthData, p.key)
+	if err != nil {
+		return TwitchCredentials{}, err
+	}
 	var botOD OauthData
-	err = json.Unmarshal(botOauthData, &botOD)
+	err = json.Unmarshal(botODPlain, &botOD)
 	if err != nil {
 		return TwitchCredentials{}, err
 	}
