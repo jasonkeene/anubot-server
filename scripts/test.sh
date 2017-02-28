@@ -5,8 +5,11 @@ set -e
 if [ "$1" = "ci" ]; then
     echo installing tools
     scripts/install_tools.sh
+    /etc/init.d/postgresql start
     function wait_for_postgres {
-        true
+        until pg_isready -U postgres -h localhost; do
+            sleep 0.1;
+        done
     }
 else
     echo starting postgres in a docker container
@@ -21,16 +24,16 @@ else
             sleep 0.1;
         done
     }
-
-    echo "waiting for postgres to listen"
-    wait_for_postgres
-
-    echo migrating postgres database
-    migrate -path=store/migrations -url="$ANUBOT_TEST_POSTGRES" up
 fi
 
 echo building binaries
 scripts/build.sh
+
+echo "waiting for postgres to listen"
+wait_for_postgres
+
+echo migrating postgres database
+migrate -path=store/migrations -url="$ANUBOT_TEST_POSTGRES" up
 
 echo running tests
 non_vendor_pkgs=$(go list ./... | grep -v /vendor/)
@@ -44,18 +47,31 @@ gofmt -s -w $non_vendor_dirs
 misspell -w $non_vendor_dirs
 
 echo running linters
+echo "  go vet"
 go vet $non_vendor_pkgs
+echo "  deadcode"
 deadcode $non_vendor_dirs
+echo "  golint"
 golint $go_lint_files
+echo "  aligncheck"
 aligncheck $non_vendor_pkgs
+echo "  structcheck"
 structcheck $non_vendor_pkgs
+echo "  varcheck"
 varcheck $non_vendor_pkgs
+echo "  ineffassign"
 echo $non_vendor_dirs | xargs -n 1 ineffassign
+echo "  interfacer"
 interfacer $non_vendor_pkgs
+echo "  unconvert"
 unconvert -v -apply $non_vendor_pkgs
+echo "  gosimple"
 gosimple $non_vendor_pkgs
+echo "  staticcheck"
 staticcheck $non_vendor_pkgs
+echo "  unused"
 unused $non_vendor_pkgs
+echo "  errcheck"
 errcheck -exclude <(cat <<EOF
 (*database/sql.Tx).Rollback
 (*database/sql.Stmt).Close
