@@ -83,11 +83,17 @@ func twitchUserDetailsHandler(e event, s *session) {
 	defer send()
 
 	p := map[string]interface{}{
+		// auth info
 		"streamer_authenticated": false,
 		"streamer_username":      "",
-		"streamer_status":        "",
-		"streamer_game":          "",
+		// user info
+		"streamer_logo":         "",
+		"streamer_display_name": "",
+		// stream info
+		"streamer_status": "",
+		"streamer_game":   "",
 
+		// auth info
 		"bot_authenticated": false,
 		"bot_username":      "",
 	}
@@ -102,6 +108,14 @@ func twitchUserDetailsHandler(e event, s *session) {
 		resp.Error = nil
 		return
 	}
+
+	userData, err := s.api.twitchClient.User(creds.StreamerPassword)
+	if err != nil {
+		log.Printf("unable to fetch info for user: %s: %s", creds.StreamerUsername, err)
+		return
+	}
+	p["streamer_logo"] = userData.Logo
+	p["streamer_display_name"] = userData.DisplayName
 
 	status, game, err := s.api.twitchClient.StreamInfo(creds.StreamerUsername)
 	if err != nil {

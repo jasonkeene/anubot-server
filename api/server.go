@@ -38,6 +38,7 @@ type StreamManager interface {
 
 // TwitchClient is used to communicate with Twitch's API.
 type TwitchClient interface {
+	User(token string) (userData twitch.UserData, err error)
 	StreamInfo(channel string) (status, game string, err error)
 	Games() (games []twitch.Game)
 	UpdateDescription(status, game, channel, token string) (err error)

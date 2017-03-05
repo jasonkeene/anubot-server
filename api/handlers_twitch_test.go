@@ -141,6 +141,13 @@ func TestTwitchUserDetails(t *testing.T) {
 		BotUsername:           "bot-user",
 	}
 	server.mockStore.TwitchCredentialsOutput.Err <- nil
+
+	server.mockTwitchClient.UserOutput.UserData <- twitch.UserData{
+		Logo:        "test-logo",
+		DisplayName: "test-display-name",
+	}
+	server.mockTwitchClient.UserOutput.Err <- nil
+
 	server.mockTwitchClient.StreamInfoOutput.Status <- "streamer-status"
 	server.mockTwitchClient.StreamInfoOutput.Game <- "streamer-game"
 	server.mockTwitchClient.StreamInfoOutput.Err <- nil
@@ -155,6 +162,8 @@ func TestTwitchUserDetails(t *testing.T) {
 		Payload: map[string]interface{}{
 			"streamer_authenticated": true,
 			"streamer_username":      "streamer-user",
+			"streamer_logo":          "test-logo",
+			"streamer_display_name":  "test-display-name",
 			"streamer_status":        "streamer-status",
 			"streamer_game":          "streamer-game",
 			"bot_authenticated":      true,

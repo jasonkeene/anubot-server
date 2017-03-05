@@ -11,6 +11,27 @@ import (
 	"github.com/jasonkeene/anubot-server/twitch"
 )
 
+type mockOauthCallbackRegistrar struct {
+	RegisterCompletionCallbackCalled chan bool
+	RegisterCompletionCallbackInput  struct {
+		Nonce chan string
+		F     chan func()
+	}
+}
+
+func newMockOauthCallbackRegistrar() *mockOauthCallbackRegistrar {
+	m := &mockOauthCallbackRegistrar{}
+	m.RegisterCompletionCallbackCalled = make(chan bool, 100)
+	m.RegisterCompletionCallbackInput.Nonce = make(chan string, 100)
+	m.RegisterCompletionCallbackInput.F = make(chan func(), 100)
+	return m
+}
+func (m *mockOauthCallbackRegistrar) RegisterCompletionCallback(nonce string, f func()) {
+	m.RegisterCompletionCallbackCalled <- true
+	m.RegisterCompletionCallbackInput.Nonce <- nonce
+	m.RegisterCompletionCallbackInput.F <- f
+}
+
 type mockStore struct {
 	RegisterUserCalled chan bool
 	RegisterUserInput  struct {
@@ -194,63 +215,6 @@ func (m *mockBTTVClient) Emoji(channel string) (emoji map[string]string, err err
 	return <-m.EmojiOutput.Emoji, <-m.EmojiOutput.Err
 }
 
-type mockTwitchClient struct {
-	StreamInfoCalled chan bool
-	StreamInfoInput  struct {
-		Channel chan string
-	}
-	StreamInfoOutput struct {
-		Status, Game chan string
-		Err          chan error
-	}
-	GamesCalled chan bool
-	GamesOutput struct {
-		Games chan []twitch.Game
-	}
-	UpdateDescriptionCalled chan bool
-	UpdateDescriptionInput  struct {
-		Status, Game, Channel, Token chan string
-	}
-	UpdateDescriptionOutput struct {
-		Err chan error
-	}
-}
-
-func newMockTwitchClient() *mockTwitchClient {
-	m := &mockTwitchClient{}
-	m.StreamInfoCalled = make(chan bool, 100)
-	m.StreamInfoInput.Channel = make(chan string, 100)
-	m.StreamInfoOutput.Status = make(chan string, 100)
-	m.StreamInfoOutput.Game = make(chan string, 100)
-	m.StreamInfoOutput.Err = make(chan error, 100)
-	m.GamesCalled = make(chan bool, 100)
-	m.GamesOutput.Games = make(chan []twitch.Game, 100)
-	m.UpdateDescriptionCalled = make(chan bool, 100)
-	m.UpdateDescriptionInput.Status = make(chan string, 100)
-	m.UpdateDescriptionInput.Game = make(chan string, 100)
-	m.UpdateDescriptionInput.Channel = make(chan string, 100)
-	m.UpdateDescriptionInput.Token = make(chan string, 100)
-	m.UpdateDescriptionOutput.Err = make(chan error, 100)
-	return m
-}
-func (m *mockTwitchClient) StreamInfo(channel string) (status, game string, err error) {
-	m.StreamInfoCalled <- true
-	m.StreamInfoInput.Channel <- channel
-	return <-m.StreamInfoOutput.Status, <-m.StreamInfoOutput.Game, <-m.StreamInfoOutput.Err
-}
-func (m *mockTwitchClient) Games() (games []twitch.Game) {
-	m.GamesCalled <- true
-	return <-m.GamesOutput.Games
-}
-func (m *mockTwitchClient) UpdateDescription(status, game, channel, token string) (err error) {
-	m.UpdateDescriptionCalled <- true
-	m.UpdateDescriptionInput.Status <- status
-	m.UpdateDescriptionInput.Game <- game
-	m.UpdateDescriptionInput.Channel <- channel
-	m.UpdateDescriptionInput.Token <- token
-	return <-m.UpdateDescriptionOutput.Err
-}
-
 type mockStreamManager struct {
 	ConnectTwitchCalled chan bool
 	ConnectTwitchInput  struct {
@@ -283,23 +247,76 @@ func (m *mockStreamManager) Send(msg stream.TXMessage) {
 	m.SendInput.Msg <- msg
 }
 
-type mockOauthCallbackRegistrar struct {
-	RegisterCompletionCallbackCalled chan bool
-	RegisterCompletionCallbackInput  struct {
-		Nonce chan string
-		F     chan func()
+type mockTwitchClient struct {
+	UserCalled chan bool
+	UserInput  struct {
+		Token chan string
+	}
+	UserOutput struct {
+		UserData chan twitch.UserData
+		Err      chan error
+	}
+	StreamInfoCalled chan bool
+	StreamInfoInput  struct {
+		Channel chan string
+	}
+	StreamInfoOutput struct {
+		Status, Game chan string
+		Err          chan error
+	}
+	GamesCalled chan bool
+	GamesOutput struct {
+		Games chan []twitch.Game
+	}
+	UpdateDescriptionCalled chan bool
+	UpdateDescriptionInput  struct {
+		Status, Game, Channel, Token chan string
+	}
+	UpdateDescriptionOutput struct {
+		Err chan error
 	}
 }
 
-func newMockOauthCallbackRegistrar() *mockOauthCallbackRegistrar {
-	m := &mockOauthCallbackRegistrar{}
-	m.RegisterCompletionCallbackCalled = make(chan bool, 100)
-	m.RegisterCompletionCallbackInput.Nonce = make(chan string, 100)
-	m.RegisterCompletionCallbackInput.F = make(chan func(), 100)
+func newMockTwitchClient() *mockTwitchClient {
+	m := &mockTwitchClient{}
+	m.UserCalled = make(chan bool, 100)
+	m.UserInput.Token = make(chan string, 100)
+	m.UserOutput.UserData = make(chan twitch.UserData, 100)
+	m.UserOutput.Err = make(chan error, 100)
+	m.StreamInfoCalled = make(chan bool, 100)
+	m.StreamInfoInput.Channel = make(chan string, 100)
+	m.StreamInfoOutput.Status = make(chan string, 100)
+	m.StreamInfoOutput.Game = make(chan string, 100)
+	m.StreamInfoOutput.Err = make(chan error, 100)
+	m.GamesCalled = make(chan bool, 100)
+	m.GamesOutput.Games = make(chan []twitch.Game, 100)
+	m.UpdateDescriptionCalled = make(chan bool, 100)
+	m.UpdateDescriptionInput.Status = make(chan string, 100)
+	m.UpdateDescriptionInput.Game = make(chan string, 100)
+	m.UpdateDescriptionInput.Channel = make(chan string, 100)
+	m.UpdateDescriptionInput.Token = make(chan string, 100)
+	m.UpdateDescriptionOutput.Err = make(chan error, 100)
 	return m
 }
-func (m *mockOauthCallbackRegistrar) RegisterCompletionCallback(nonce string, f func()) {
-	m.RegisterCompletionCallbackCalled <- true
-	m.RegisterCompletionCallbackInput.Nonce <- nonce
-	m.RegisterCompletionCallbackInput.F <- f
+func (m *mockTwitchClient) User(token string) (userData twitch.UserData, err error) {
+	m.UserCalled <- true
+	m.UserInput.Token <- token
+	return <-m.UserOutput.UserData, <-m.UserOutput.Err
+}
+func (m *mockTwitchClient) StreamInfo(channel string) (status, game string, err error) {
+	m.StreamInfoCalled <- true
+	m.StreamInfoInput.Channel <- channel
+	return <-m.StreamInfoOutput.Status, <-m.StreamInfoOutput.Game, <-m.StreamInfoOutput.Err
+}
+func (m *mockTwitchClient) Games() (games []twitch.Game) {
+	m.GamesCalled <- true
+	return <-m.GamesOutput.Games
+}
+func (m *mockTwitchClient) UpdateDescription(status, game, channel, token string) (err error) {
+	m.UpdateDescriptionCalled <- true
+	m.UpdateDescriptionInput.Status <- status
+	m.UpdateDescriptionInput.Game <- game
+	m.UpdateDescriptionInput.Channel <- channel
+	m.UpdateDescriptionInput.Token <- token
+	return <-m.UpdateDescriptionOutput.Err
 }
