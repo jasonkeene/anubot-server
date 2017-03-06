@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"fmt"
 	"log"
 	"net/http"
@@ -36,11 +37,20 @@ func main() {
 	backend := v.GetString("store_backend")
 	var st store.Store
 	switch backend {
+	case "postgres":
+		key, err := base64.RawStdEncoding.DecodeString(v.GetString("encryption_key"))
+		if err != nil {
+			log.Panicf("unable to decode encryption key: %s", err)
+		}
+		st, err = store.NewPostgres(v.GetString("store_postgres_url"), key)
+		if err != nil {
+			log.Panicf("unable to open postgres database: %s", err)
+		}
 	case "bolt":
 		var err error
 		st, err = store.NewBolt(v.GetString("store_bolt_path"))
 		if err != nil {
-			log.Panicf("unable to craete bolt database: %s", err)
+			log.Panicf("unable to create bolt database: %s", err)
 		}
 	case "dummy":
 		log.Panicf("dummy store backend is not wired up")
