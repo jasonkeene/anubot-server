@@ -67,6 +67,18 @@ func (d *Dummy) AuthenticateUser(username, password string) (string, bool, error
 	return id, true, nil
 }
 
+// OauthNonce gets the oauth nonce for a given user if it exists.
+func (d *Dummy) OauthNonce(userID string, tu TwitchUser) (nonce string, err error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	for nonce, nr := range d.nonces {
+		if nr.UserID == userID && nr.TU == tu {
+			return nonce, nil
+		}
+	}
+	return "", ErrUnknownNonce
+}
+
 // StoreOauthNonce stores the oauth nonce.
 func (d *Dummy) StoreOauthNonce(userID string, tu TwitchUser, nonce string) error {
 	d.mu.Lock()

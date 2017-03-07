@@ -14,6 +14,9 @@ type Store interface {
 	// If they are the user ID is returned with a bool to indicate success.
 	AuthenticateUser(username, password string) (userID string, success bool, err error)
 
+	// OauthNonce gets the oauth nonce for a given user if it exists.
+	OauthNonce(userID string, tu TwitchUser) (nonce string, err error)
+
 	// StoreOauthNonce stores the oauth nonce.
 	StoreOauthNonce(userID string, tu TwitchUser, nonce string) (err error)
 

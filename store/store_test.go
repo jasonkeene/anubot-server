@@ -16,6 +16,7 @@ import (
 
 func TestThatBackendsComplyWithAllStoreMethods(t *testing.T) {
 	var (
+		_ store.Store = &store.Postgres{}
 		_ store.Store = &store.Bolt{}
 		_ store.Store = &store.Dummy{}
 	)
@@ -67,8 +68,15 @@ func TestThatTwitchOauthFlowWorks(t *testing.T) {
 		userID, err := b.RegisterUser("test-user", "test-pass")
 		expect(err).To.Be.Nil()
 
+		_, err = b.OauthNonce(userID, store.Streamer)
+		expect(err).Not.To.Be.Nil()
+
 		streamerNonce := "streamer-nonce"
 		err = b.StoreOauthNonce(userID, store.Streamer, streamerNonce)
+		expect(err).To.Be.Nil()
+
+		actualStreamerNonce, err := b.OauthNonce(userID, store.Streamer)
+		expect(actualStreamerNonce).To.Equal(streamerNonce)
 		expect(err).To.Be.Nil()
 
 		ok, err := b.OauthNonceExists(streamerNonce)
@@ -86,8 +94,15 @@ func TestThatTwitchOauthFlowWorks(t *testing.T) {
 		ok, _ = b.OauthNonceExists(streamerNonce)
 		expect(ok).Not.To.Be.Ok()
 
+		_, err = b.OauthNonce(userID, store.Bot)
+		expect(err).Not.To.Be.Nil()
+
 		botNonce := "bot-nonce"
 		err = b.StoreOauthNonce(userID, store.Bot, botNonce)
+		expect(err).To.Be.Nil()
+
+		actualBotNonce, err := b.OauthNonce(userID, store.Bot)
+		expect(actualBotNonce).To.Equal(botNonce)
 		expect(err).To.Be.Nil()
 
 		ok, err = b.OauthNonceExists(botNonce)

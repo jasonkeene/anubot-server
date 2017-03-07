@@ -103,15 +103,21 @@ func (b *Bolt) AuthenticateUser(username, password string) (string, bool, error)
 	return ur.UserID, true, nil
 }
 
+// OauthNonce gets the oauth nonce for a given user if it exists.
+func (b *Bolt) OauthNonce(userID string, tu TwitchUser) (nonce string, err error) {
+	err = b.db.View(func(tx *bolt.Tx) error {
+		var err error
+		nonce, err = getNonceRecordByUserID(userID, tu, tx)
+		return err
+	})
+	if err != nil {
+		return "", ErrUnknownNonce
+	}
+	return nonce, nil
+}
+
 // StoreOauthNonce stores the oauth nonce.
 func (b *Bolt) StoreOauthNonce(userID string, tu TwitchUser, nonce string) error {
-	switch tu {
-	case Streamer:
-	case Bot:
-	default:
-		return ErrInvalidTwitchUserType
-	}
-
 	nr := nonceRecord{
 		Nonce:   nonce,
 		UserID:  userID,

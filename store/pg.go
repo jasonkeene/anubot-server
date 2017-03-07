@@ -125,6 +125,27 @@ func (p *Postgres) AuthenticateUser(username, password string) (userID string, s
 	return userID, true, nil
 }
 
+// OauthNonce gets the oauth nonce for a given user if it exists.
+func (p *Postgres) OauthNonce(userID string, tu TwitchUser) (nonce string, err error) {
+	tx, err := p.db.Begin()
+	if err != nil {
+		return "", err
+	}
+	defer tx.Rollback()
+
+	stmt, err := tx.Prepare(`SELECT nonce FROM nonce WHERE user_id=$1 AND twitch_user=$2`)
+	if err != nil {
+		return "", err
+	}
+	defer stmt.Close()
+
+	err = stmt.QueryRow(userID, tu.String()).Scan(&nonce)
+	if err != nil {
+		return "", err
+	}
+	return nonce, nil
+}
+
 // StoreOauthNonce stores the oauth nonce.
 func (p *Postgres) StoreOauthNonce(userID string, tu TwitchUser, nonce string) (err error) {
 	tx, err := p.db.Begin()

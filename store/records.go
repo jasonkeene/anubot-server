@@ -42,6 +42,23 @@ func upsertNonceRecord(nr nonceRecord, tx *bolt.Tx) error {
 	return b.Put([]byte(nr.Nonce), nrb)
 }
 
+func getNonceRecordByUserID(userID string, tu TwitchUser, tx *bolt.Tx) (string, error) {
+	b := tx.Bucket([]byte("nonces"))
+
+	c := b.Cursor()
+	for k, v := c.First(); k != nil; k, v = c.Next() {
+		var nr nonceRecord
+		err := json.Unmarshal(v, &nr)
+		if err != nil {
+			continue
+		}
+		if nr.UserID == userID && nr.TU == tu {
+			return nr.Nonce, nil
+		}
+	}
+	return "", ErrUnknownNonce
+}
+
 func getNonceRecord(nonce string, tx *bolt.Tx) (nonceRecord, error) {
 	b := tx.Bucket([]byte("nonces"))
 
