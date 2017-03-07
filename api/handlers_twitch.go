@@ -42,8 +42,22 @@ func twitchOauthStartHandler(e event, s *session) {
 		return
 	}
 
-	nonce := s.api.nonceGen()
-	err := s.api.store.StoreOauthNonce(userID, tu, nonce)
+	nonce, err := s.api.store.OauthNonce(userID, tu)
+	if err == nil {
+		url := oauth.URL(
+			s.api.twitchOauthClientID,
+			s.api.twitchOauthRedirectURL,
+			userID,
+			tu,
+			nonce,
+		)
+		resp.Payload = url
+		resp.Error = nil
+		return
+	}
+
+	nonce = s.api.nonceGen()
+	err = s.api.store.StoreOauthNonce(userID, tu, nonce)
 	if err != nil {
 		log.Printf("got an err trying to store oauth nonce: %s", err)
 		return

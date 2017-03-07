@@ -21,6 +21,8 @@ func TestTwitchOauthStartStreamer(t *testing.T) {
 	defer cleanup()
 	authenticate(server, client)
 
+	server.mockStore.OauthNonceOutput.Nonce <- ""
+	server.mockStore.OauthNonceOutput.Err <- store.ErrUnknownNonce
 	server.mockStore.StoreOauthNonceOutput.Err <- nil
 
 	oauthStartReq := event{
@@ -34,9 +36,19 @@ func TestTwitchOauthStartStreamer(t *testing.T) {
 		Payload:   `https://api.twitch.tv/kraken/oauth2/authorize?client_id=some-client-id&redirect_uri=some-redirect-uri&response_type=code&scope=user_read+user_blocks_edit+user_blocks_read+user_follows_edit+channel_read+channel_editor+channel_commercial+channel_stream+channel_subscriptions+user_subscriptions+channel_check_subscription+chat_login+channel_feed_read+channel_feed_edit&state=test-nonce`,
 	}
 	client.SendEvent(oauthStartReq)
-	expect(<-server.mockStore.StoreOauthNonceInput.Tu).To.Equal(store.Streamer)
+	expect(<-server.mockStore.OauthNonceInput.UserID).To.Equal("some-user-id")
+	expect(<-server.mockStore.OauthNonceInput.Tu).To.Equal(store.Streamer)
 	expect(<-server.mockStore.StoreOauthNonceInput.UserID).To.Equal("some-user-id")
+	expect(<-server.mockStore.StoreOauthNonceInput.Tu).To.Equal(store.Streamer)
 	expect(<-server.mockStore.StoreOauthNonceInput.Nonce).To.Equal("test-nonce")
+	expect(client.ReadEvent()).To.Equal(expectedResp)
+
+	server.mockStore.OauthNonceOutput.Nonce <- "test-nonce"
+	server.mockStore.OauthNonceOutput.Err <- nil
+
+	client.SendEvent(oauthStartReq)
+	expect(<-server.mockStore.OauthNonceInput.UserID).To.Equal("some-user-id")
+	expect(<-server.mockStore.OauthNonceInput.Tu).To.Equal(store.Streamer)
 	expect(client.ReadEvent()).To.Equal(expectedResp)
 }
 
@@ -53,6 +65,8 @@ func TestTwitchOauthStartBotAfterStreamer(t *testing.T) {
 		StreamerAuthenticated: true,
 	}
 	server.mockStore.TwitchCredentialsOutput.Err <- nil
+	server.mockStore.OauthNonceOutput.Nonce <- ""
+	server.mockStore.OauthNonceOutput.Err <- store.ErrUnknownNonce
 	server.mockStore.StoreOauthNonceOutput.Err <- nil
 
 	oauthStartReq := event{

@@ -20,6 +20,7 @@ type Store interface {
 	RegisterUser(username, password string) (userID string, err error)
 	AuthenticateUser(username, password string) (userID string, authenticated bool, err error)
 
+	OauthNonce(userID string, tu store.TwitchUser) (nonce string, err error)
 	StoreOauthNonce(userID string, tu store.TwitchUser, nonce string) (err error)
 	OauthNonceExists(nonce string) (exists bool, err error)
 	FinishOauthNonce(nonce, twitchUsername string, twitchUserID int, od store.OauthData) (err error)
