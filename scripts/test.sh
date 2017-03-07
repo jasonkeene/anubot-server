@@ -79,10 +79,12 @@ staticcheck $non_vendor_pkgs
 echo "  unused"
 unused $non_vendor_pkgs
 echo "  errcheck"
-errcheck -exclude <(cat <<EOF
+cat <<EOF > errcheckexclude
 (*database/sql.Tx).Rollback
 (*database/sql.Stmt).Close
 (*database/sql.Rows).Close
-EOF) $non_vendor_pkgs
+EOF
+errcheck -exclude errcheckexclude $non_vendor_pkgs
+rm errcheckexclude
 
 echo 'All Tests Passed!'
