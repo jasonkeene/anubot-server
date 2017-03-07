@@ -64,6 +64,7 @@ func setupServer() (server, func()) {
 		mtc,
 		mcr,
 		"some-client-id",
+		"some-redirect-uri",
 		api.WithBTTVClient(mbc),
 		api.WithSubEndpoints([]string{e}),
 		api.WithNonceGenerator(ng),

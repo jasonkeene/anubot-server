@@ -46,7 +46,6 @@ const (
 	twitchBaseURL = "https://api.twitch.tv/kraken/"
 	authorizeURL  = twitchBaseURL + "oauth2/authorize"
 	tokenURL      = twitchBaseURL + "oauth2/token"
-	redirectURL   = "https://anubot.io/twitch_oauth/done"
 	scopes        = "" +
 		"user_read " +
 		"user_blocks_edit " +
@@ -74,7 +73,7 @@ func parseOauthData(data []byte) (store.OauthData, error) {
 	return od, err
 }
 
-// DoneHandler is where the redirect URL hits to finsih the Oauth flow.
+// DoneHandler is where the redirect URI hits to finsih the Oauth flow.
 type DoneHandler struct {
 	twitchOauthClientID     string
 	twitchOauthClientSecret string
@@ -85,7 +84,7 @@ type DoneHandler struct {
 	callbacks               map[string]func()
 }
 
-// NewDoneHandler creates a new handler to finish the Oauth flow.
+// NewDoneHandler creates a new handler to finish the oauth flow.
 func NewDoneHandler(
 	twitchOauthClientID,
 	twitchOauthClientSecret,
@@ -230,10 +229,10 @@ func GenerateNonce() string {
 }
 
 // URL returns a URL that will start the oauth flow.
-func URL(clientID, userID string, tu store.TwitchUser, nonce string) string {
+func URL(clientID, redirectURI, userID string, tu store.TwitchUser, nonce string) string {
 	v := url.Values{}
 	v.Set("response_type", "code")
-	v.Set("redirect_uri", redirectURL)
+	v.Set("redirect_uri", redirectURI)
 	v.Set("scope", scopes)
 	v.Set("client_id", clientID)
 	v.Set("state", nonce)

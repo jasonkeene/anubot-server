@@ -40,16 +40,6 @@ func (s *session) Receive() (event, error) {
 	return e, err
 }
 
-// Store gets the store for this session.
-func (s *session) Store() Store {
-	return s.api.store
-}
-
-// TwitchOauthClientID gets the oauth client ID for Twitch.
-func (s *session) TwitchOauthClientID() string {
-	return s.api.twitchOauthClientID
-}
-
 // SetAuthentication sets the authentication for this session.
 func (s *session) SetAuthentication(id string) {
 	s.authenticated = true

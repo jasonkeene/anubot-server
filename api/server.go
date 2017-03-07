@@ -60,15 +60,16 @@ type NonceGenerator func() string
 
 // Server responds to websocket events sent from the client.
 type Server struct {
-	streamManager        StreamManager
-	subEndpoints         []string
-	store                Store
-	twitchClient         TwitchClient
-	twitchOauthClientID  string
-	bttvClient           BTTVClient
-	pingInterval         time.Duration
-	twitchOauthCallbacks OauthCallbackRegistrar
-	nonceGen             NonceGenerator
+	streamManager          StreamManager
+	subEndpoints           []string
+	store                  Store
+	twitchClient           TwitchClient
+	twitchOauthClientID    string
+	twitchOauthRedirectURL string
+	bttvClient             BTTVClient
+	pingInterval           time.Duration
+	twitchOauthCallbacks   OauthCallbackRegistrar
+	nonceGen               NonceGenerator
 }
 
 // Option is used to configure a Server.
@@ -110,18 +111,20 @@ func New(
 	twitchClient TwitchClient,
 	twitchOauthCallbacks OauthCallbackRegistrar,
 	twitchOauthClientID string,
+	twitchOauthRedirectURL string,
 	opts ...Option,
 ) *Server {
 	s := &Server{
-		streamManager:        streamManager,
-		subEndpoints:         []string{"inproc://dispatch-pub"},
-		store:                store,
-		twitchClient:         twitchClient,
-		twitchOauthCallbacks: twitchOauthCallbacks,
-		twitchOauthClientID:  twitchOauthClientID,
-		bttvClient:           bttv.New(),
-		pingInterval:         5 * time.Second,
-		nonceGen:             oauth.GenerateNonce,
+		streamManager:          streamManager,
+		subEndpoints:           []string{"inproc://dispatch-pub"},
+		store:                  store,
+		twitchClient:           twitchClient,
+		twitchOauthCallbacks:   twitchOauthCallbacks,
+		twitchOauthClientID:    twitchOauthClientID,
+		twitchOauthRedirectURL: twitchOauthRedirectURL,
+		bttvClient:             bttv.New(),
+		pingInterval:           5 * time.Second,
+		nonceGen:               oauth.GenerateNonce,
 	}
 	for _, opt := range opts {
 		opt(s)

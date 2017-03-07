@@ -18,7 +18,7 @@ func registerHandler(e event, s *session) {
 		return
 	}
 
-	id, err := s.Store().RegisterUser(payload.Username, payload.Password)
+	id, err := s.api.store.RegisterUser(payload.Username, payload.Password)
 	if err != nil {
 		if err == store.ErrUsernameTaken {
 			resp.Error = usernameTaken
@@ -40,7 +40,7 @@ func authenticateHandler(e event, s *session) {
 		return
 	}
 
-	id, ok, err := s.Store().AuthenticateUser(payload.Username, payload.Password)
+	id, ok, err := s.api.store.AuthenticateUser(payload.Username, payload.Password)
 	if !ok || err != nil {
 		resp.Error = authenticationError
 		return

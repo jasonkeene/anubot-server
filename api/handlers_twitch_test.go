@@ -31,7 +31,7 @@ func TestTwitchOauthStartStreamer(t *testing.T) {
 	expectedResp := event{
 		Cmd:       "twitch-oauth-start",
 		RequestID: oauthStartReq.RequestID,
-		Payload:   `https://api.twitch.tv/kraken/oauth2/authorize?client_id=some-client-id&redirect_uri=https%3A%2F%2Fanubot.io%2Ftwitch_oauth%2Fdone&response_type=code&scope=user_read+user_blocks_edit+user_blocks_read+user_follows_edit+channel_read+channel_editor+channel_commercial+channel_stream+channel_subscriptions+user_subscriptions+channel_check_subscription+chat_login+channel_feed_read+channel_feed_edit&state=test-nonce`,
+		Payload:   `https://api.twitch.tv/kraken/oauth2/authorize?client_id=some-client-id&redirect_uri=some-redirect-uri&response_type=code&scope=user_read+user_blocks_edit+user_blocks_read+user_follows_edit+channel_read+channel_editor+channel_commercial+channel_stream+channel_subscriptions+user_subscriptions+channel_check_subscription+chat_login+channel_feed_read+channel_feed_edit&state=test-nonce`,
 	}
 	client.SendEvent(oauthStartReq)
 	expect(<-server.mockStore.StoreOauthNonceInput.Tu).To.Equal(store.Streamer)
@@ -63,7 +63,7 @@ func TestTwitchOauthStartBotAfterStreamer(t *testing.T) {
 	expectedResp := event{
 		Cmd:       "twitch-oauth-start",
 		RequestID: oauthStartReq.RequestID,
-		Payload:   `https://api.twitch.tv/kraken/oauth2/authorize?client_id=some-client-id&redirect_uri=https%3A%2F%2Fanubot.io%2Ftwitch_oauth%2Fdone&response_type=code&scope=user_read+user_blocks_edit+user_blocks_read+user_follows_edit+channel_read+channel_editor+channel_commercial+channel_stream+channel_subscriptions+user_subscriptions+channel_check_subscription+chat_login+channel_feed_read+channel_feed_edit&state=test-nonce`,
+		Payload:   `https://api.twitch.tv/kraken/oauth2/authorize?client_id=some-client-id&redirect_uri=some-redirect-uri&response_type=code&scope=user_read+user_blocks_edit+user_blocks_read+user_follows_edit+channel_read+channel_editor+channel_commercial+channel_stream+channel_subscriptions+user_subscriptions+channel_check_subscription+chat_login+channel_feed_read+channel_feed_edit&state=test-nonce`,
 	}
 	client.SendEvent(oauthStartReq)
 	expect(<-server.mockStore.StoreOauthNonceInput.Tu).To.Equal(store.Bot)

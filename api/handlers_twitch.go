@@ -29,7 +29,7 @@ func twitchOauthStartHandler(e event, s *session) {
 		tu = store.Streamer
 	case "bot":
 		tu = store.Bot
-		creds, err := s.Store().TwitchCredentials(userID)
+		creds, err := s.api.store.TwitchCredentials(userID)
 		if err != nil {
 			return
 		}
@@ -43,12 +43,18 @@ func twitchOauthStartHandler(e event, s *session) {
 	}
 
 	nonce := s.api.nonceGen()
-	err := s.Store().StoreOauthNonce(userID, tu, nonce)
+	err := s.api.store.StoreOauthNonce(userID, tu, nonce)
 	if err != nil {
 		log.Printf("got an err trying to store oauth nonce: %s", err)
 		return
 	}
-	url := oauth.URL(s.TwitchOauthClientID(), userID, tu, nonce)
+	url := oauth.URL(
+		s.api.twitchOauthClientID,
+		s.api.twitchOauthRedirectURL,
+		userID,
+		tu,
+		nonce,
+	)
 
 	s.api.twitchOauthCallbacks.RegisterCompletionCallback(nonce, func() {
 		resp := event{
@@ -69,7 +75,7 @@ func twitchClearAuthHandler(e event, s *session) {
 	resp, send := setup(e, s)
 	defer send()
 
-	err := s.Store().TwitchClearAuth(s.userID)
+	err := s.api.store.TwitchClearAuth(s.userID)
 	if err != nil {
 		return
 	}
@@ -98,7 +104,7 @@ func twitchUserDetailsHandler(e event, s *session) {
 		"bot_username":      "",
 	}
 
-	creds, err := s.Store().TwitchCredentials(s.userID)
+	creds, err := s.api.store.TwitchCredentials(s.userID)
 	if err != nil {
 		log.Printf("unable to authenticate: %s", err)
 		return
@@ -150,13 +156,13 @@ func twitchGamesHandler(e event, s *session) {
 
 // twitchStreamMessagesHandler writes chat messages to websocket connection.
 func twitchStreamMessagesHandler(e event, s *session) {
-	creds, err := s.Store().TwitchCredentials(s.userID)
+	creds, err := s.api.store.TwitchCredentials(s.userID)
 	if err != nil {
 		log.Printf("unable to get creds: %s", err)
 		return
 	}
 
-	recent, err := s.Store().FetchRecentMessages(s.userID)
+	recent, err := s.api.store.FetchRecentMessages(s.userID)
 	if err == nil {
 		for _, msg := range recent {
 			if msg.Type != stream.Twitch {
@@ -233,7 +239,7 @@ func twitchSendMessageHandler(e event, s *session) {
 		return
 	}
 
-	creds, err := s.Store().TwitchCredentials(s.userID)
+	creds, err := s.api.store.TwitchCredentials(s.userID)
 	if err != nil {
 		log.Printf("unable to get creds: %s", err)
 		return
@@ -286,7 +292,7 @@ func twitchUpdateChatDescriptionHandler(e event, s *session) {
 		return
 	}
 
-	creds, err := s.Store().TwitchCredentials(s.userID)
+	creds, err := s.api.store.TwitchCredentials(s.userID)
 	if err != nil {
 		log.Printf("unable to get creds: %s", err)
 		return
@@ -311,7 +317,7 @@ func twitchAuthenticateWrapper(f eventHandler) eventHandler {
 	return func(e event, s *session) {
 		userID, _ := s.Authenticated()
 
-		creds, err := s.Store().TwitchCredentials(userID)
+		creds, err := s.api.store.TwitchCredentials(userID)
 
 		if err != nil {
 			err := s.Send(event{

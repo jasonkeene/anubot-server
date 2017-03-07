@@ -95,6 +95,7 @@ func main() {
 		twitchClient,
 		doneHandler,
 		v.GetString("twitch_oauth_client_id"),
+		v.GetString("twitch_oauth_redirect_uri"),
 	)
 	mux.Handle("/api", api)
 
