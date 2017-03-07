@@ -86,7 +86,7 @@ func main() {
 		st,
 		twitchClient,
 	)
-	mux.Handle("/twitch_oauth/done", doneHandler)
+	mux.Handle("/v1/twitch_oauth/done", doneHandler)
 
 	// setup websocket API server
 	api := api.New(
@@ -97,7 +97,7 @@ func main() {
 		v.GetString("twitch_oauth_client_id"),
 		v.GetString("twitch_oauth_redirect_uri"),
 	)
-	mux.Handle("/api", api)
+	mux.Handle("/v1/ws", api)
 
 	// bind websocket API
 	v.SetDefault("port", 8080)
