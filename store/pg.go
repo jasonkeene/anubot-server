@@ -424,13 +424,16 @@ func (p *Postgres) FetchRecentMessages(userID string) (msgs []stream.RXMessage, 
 	}
 	defer tx.Rollback()
 
-	stmt, err := tx.Prepare(`SELECT streamer_id FROM "user" WHERE user_id=$1`)
+	stmt, err := tx.Prepare(`SELECT streamer_id, bot_id FROM "user" WHERE user_id=$1`)
 	if err != nil {
 		return nil, err
 	}
 	defer stmt.Close()
-	var twitchStreamerID int
-	err = stmt.QueryRow(userID).Scan(&twitchStreamerID)
+	var (
+		twitchStreamerID int
+		twitchBotID      int
+	)
+	err = stmt.QueryRow(userID).Scan(&twitchStreamerID, &twitchBotID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -438,12 +441,12 @@ func (p *Postgres) FetchRecentMessages(userID string) (msgs []stream.RXMessage, 
 		return nil, err
 	}
 
-	mstmt, err := tx.Prepare(`SELECT message FROM message WHERE source='Twitch' AND twitch_owner_id=$1 LIMIT 500`)
+	mstmt, err := tx.Prepare(`SELECT message FROM message WHERE source='Twitch' AND (twitch_owner_id=$1 OR twitch_owner_id=$2) LIMIT 500`)
 	if err != nil {
 		return nil, err
 	}
 	defer mstmt.Close()
-	rows, err := mstmt.Query(twitchStreamerID)
+	rows, err := mstmt.Query(twitchStreamerID, twitchBotID)
 	if err != nil {
 		return nil, err
 	}

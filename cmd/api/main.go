@@ -46,6 +46,10 @@ func main() {
 		if err != nil {
 			log.Panicf("unable to open postgres database: %s", err)
 		}
+		err = st.(*store.Postgres).Ping()
+		if err != nil {
+			log.Panicf("unable to ping postgres database: %s", err)
+		}
 	case "bolt":
 		var err error
 		st, err = store.NewBolt(v.GetString("store_bolt_path"))

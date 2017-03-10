@@ -182,7 +182,8 @@ func twitchStreamMessagesHandler(e event, s *session) {
 			if msg.Type != stream.Twitch {
 				continue
 			}
-			if msg.Twitch.OwnerID == creds.BotTwitchUserID && !userMessage(&msg, creds.StreamerUsername) {
+			if msg.Twitch.OwnerID == creds.BotTwitchUserID &&
+				!userMessage(&msg, creds.StreamerUsername) {
 				continue
 			}
 

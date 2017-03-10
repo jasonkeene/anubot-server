@@ -133,7 +133,7 @@ func readMessage(sub *zmq4.Socket) (*stream.RXMessage, error) {
 	return &ms, nil
 }
 
-// userMessage returns true if the message was sent to the user, otherwise it
+// userMessage returns true if the message was sent from the user, otherwise it
 // returns false.
 func userMessage(ms *stream.RXMessage, username string) bool {
 	if ms.Type != stream.Twitch {
