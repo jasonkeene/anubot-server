@@ -23,10 +23,10 @@ go get -u github.com/mvdan/interfacer/cmd/interfacer
 echo installing unconvert
 go get -u github.com/mdempsky/unconvert
 echo installing gosimple
-go get -u honnef.co/go/simple/cmd/gosimple
+go get -u honnef.co/go/tools/cmd/gosimple
 echo installing staticcheck
-go get -u honnef.co/go/staticcheck/cmd/staticcheck
+go get -u honnef.co/go/tools/cmd/staticcheck
 echo installing unused
-go get -u honnef.co/go/unused/cmd/unused
+go get -u honnef.co/go/tools/cmd/unused
 echo installing misspell
 go get -u github.com/client9/misspell/cmd/misspell
