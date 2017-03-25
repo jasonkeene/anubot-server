@@ -8,10 +8,15 @@ import (
 	"github.com/gorilla/websocket"
 	uuid "github.com/satori/go.uuid"
 
-	"github.com/jasonkeene/anubot-server/bttv"
+	"github.com/jasonkeene/anubot-server/api/internal/handlers"
+	"github.com/jasonkeene/anubot-server/api/internal/handlers/auth"
+	"github.com/jasonkeene/anubot-server/api/internal/handlers/bttv"
+	"github.com/jasonkeene/anubot-server/api/internal/handlers/general"
+	"github.com/jasonkeene/anubot-server/api/internal/handlers/twitch"
+	bttvAPI "github.com/jasonkeene/anubot-server/bttv"
 	"github.com/jasonkeene/anubot-server/store"
 	"github.com/jasonkeene/anubot-server/stream"
-	"github.com/jasonkeene/anubot-server/twitch"
+	twitchAPI "github.com/jasonkeene/anubot-server/twitch"
 	"github.com/jasonkeene/anubot-server/twitch/oauth"
 )
 
@@ -39,9 +44,9 @@ type StreamManager interface {
 
 // TwitchClient is used to communicate with Twitch's API.
 type TwitchClient interface {
-	User(token string) (userData twitch.UserData, err error)
+	User(token string) (userData twitchAPI.UserData, err error)
 	StreamInfo(channel string) (status, game string, err error)
-	Games() (games []twitch.Game)
+	Games() (games []twitchAPI.Game)
 	UpdateDescription(status, game, channel, token string) (err error)
 }
 
@@ -71,6 +76,8 @@ type Server struct {
 	pingInterval           time.Duration
 	twitchOauthCallbacks   OauthCallbackRegistrar
 	nonceGen               NonceGenerator
+	handlers               map[string]handlers.EventHandler
+	upgrader               websocket.Upgrader
 }
 
 // Option is used to configure a Server.
@@ -123,21 +130,96 @@ func New(
 		twitchOauthCallbacks:   twitchOauthCallbacks,
 		twitchOauthClientID:    twitchOauthClientID,
 		twitchOauthRedirectURL: twitchOauthRedirectURL,
-		bttvClient:             bttv.New(),
+		bttvClient:             bttvAPI.New(),
 		pingInterval:           5 * time.Second,
 		nonceGen:               oauth.GenerateNonce,
 	}
+	s.createHandlers()
 	for _, opt := range opts {
 		opt(s)
 	}
 	return s
 }
 
-var upgrader = websocket.Upgrader{}
+func (s *Server) createHandlers() {
+	s.handlers = make(map[string]handlers.EventHandler)
+
+	// public
+	{
+		// general
+		s.handlers["ping"] = handlers.EventHandlerFunc(general.PingHandler)
+		s.handlers["methods"] = general.NewMethodsHandler(s.handlers)
+
+		// authentication
+		s.handlers["register"] = auth.NewRegisterHandler(s.store)
+		s.handlers["authenticate"] = auth.NewAuthenticateHandler(s.store)
+		s.handlers["logout"] = handlers.EventHandlerFunc(auth.LogoutHandler)
+	}
+
+	// authenticated
+	{
+		// twitch oauth
+		s.handlers["twitch-oauth-start"] = auth.AuthenticateWrapper(
+			twitch.NewOauthStartHandler(
+				s.store,
+				twitch.NonceGenerator(s.nonceGen),
+				s.store,
+				s.twitchOauthClientID,
+				s.twitchOauthRedirectURL,
+				s.twitchOauthCallbacks,
+			),
+		)
+		s.handlers["twitch-clear-auth"] = auth.AuthenticateWrapper(
+			twitch.NewClearAuthHandler(s.store),
+		)
+
+		// user information
+		s.handlers["twitch-user-details"] = auth.AuthenticateWrapper(
+			twitch.NewUserDetailsHandler(s.store, s.twitchClient),
+		)
+
+		// twitch
+		s.handlers["twitch-games"] = auth.AuthenticateWrapper(
+			twitch.NewGamesHandler(s.twitchClient),
+		)
+
+		// bttv
+		s.handlers["bttv-emoji"] = auth.AuthenticateWrapper(
+			bttv.NewEmojiHandler(s.store, s.bttvClient),
+		)
+	}
+
+	// twitch authenticated
+	{
+		// twitch chat
+		s.handlers["twitch-stream-messages"] = auth.AuthenticateWrapper(
+			twitch.AuthenticateWrapper(
+				s.store,
+				twitch.NewStreamMessagesHandler(
+					s.store,
+					s.streamManager,
+					s.subEndpoints,
+				),
+			),
+		)
+		s.handlers["twitch-send-message"] = auth.AuthenticateWrapper(
+			twitch.AuthenticateWrapper(
+				s.store,
+				twitch.NewSendMessageHandler(s.store, s.streamManager),
+			),
+		)
+		s.handlers["twitch-update-chat-description"] = auth.AuthenticateWrapper(
+			twitch.AuthenticateWrapper(
+				s.store,
+				twitch.NewUpdateChatDescriptionHandler(s.store, s.twitchClient),
+			),
+		)
+	}
+}
 
 // ServeHTTP processes the websocket connection, reading and writing events.
-func (api *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ws, err := upgrader.Upgrade(w, r, nil)
+func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	ws, err := s.upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Print("got error while upgrading ws conn: ", err)
 		return
@@ -148,48 +230,47 @@ func (api *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			log.Printf("got error while closing ws conn: %s", err)
 		}
 	}()
-	go api.writePings(ws)
+	go s.writePings(ws)
 
-	s := &session{
-		id:  uuid.NewV4().String(),
-		ws:  ws,
-		api: api,
+	sess := &session{
+		id: uuid.NewV4().String(),
+		ws: ws,
 	}
-	log.Printf("serving session: %s", s.id)
-	defer log.Printf("done serving session: %s", s.id)
+	log.Printf("serving session: %s", sess.id)
+	defer log.Printf("done serving session: %s", sess.id)
 
 	for {
-		e, err := s.Receive()
+		e, err := sess.Receive()
 		if err != nil {
 			if !websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-				log.Printf("got error while rx event: %s %s", s.id, err)
+				log.Printf("got error while rx event: %s %s", sess.id, err)
 			}
 			return
 		}
-		handler, ok := eventHandlers[e.Cmd]
+		handler, ok := s.handlers[e.Cmd]
 		if !ok {
-			log.Printf("received invalid command: %s %s", s.id, e.Cmd)
-			err = s.Send(event{
+			log.Printf("received invalid command: %s %s", sess.id, e.Cmd)
+			err = sess.Send(handlers.Event{
 				Cmd:       e.Cmd,
 				RequestID: e.RequestID,
-				Error:     invalidCommand,
+				Error:     handlers.InvalidCommand,
 			})
 			if err != nil {
 				log.Printf("unable to tx: %s", err)
 			}
 			continue
 		}
-		handler(e, s)
+		handler.HandleEvent(e, sess)
 	}
 }
 
-func (api *Server) writePings(ws *websocket.Conn) {
+func (s *Server) writePings(ws *websocket.Conn) {
 	for {
 		err := ws.WriteControl(websocket.PingMessage, nil, time.Now().Add(time.Second))
 		if err != nil {
 			log.Print("unable to write ping control message: ", err)
 			return
 		}
-		time.Sleep(api.pingInterval)
+		time.Sleep(s.pingInterval)
 	}
 }

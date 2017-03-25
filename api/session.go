@@ -5,20 +5,21 @@ import (
 	"fmt"
 
 	"github.com/gorilla/websocket"
+	"github.com/jasonkeene/anubot-server/api/internal/handlers"
 )
 
-// session stores objects handlers need when responding to events.
+// session represents the state of a given connection. This includes
+// authentication information and the means of sending and receiving events to
+// the connected client.
 type session struct {
-	id  string
-	ws  *websocket.Conn
-	api *Server
-
+	id            string
+	ws            *websocket.Conn
 	authenticated bool
 	userID        string
 }
 
 // Send sends an event to the user over the websocket connection.
-func (s *session) Send(e event) error {
+func (s *session) Send(e handlers.Event) error {
 	message, err := json.Marshal(e)
 	if err != nil {
 		return err
@@ -27,8 +28,8 @@ func (s *session) Send(e event) error {
 }
 
 // Receive returns the next event from the websocket connection.
-func (s *session) Receive() (event, error) {
-	var e event
+func (s *session) Receive() (handlers.Event, error) {
+	var e handlers.Event
 	mt, message, err := s.ws.ReadMessage()
 	if err != nil {
 		return e, err
@@ -41,9 +42,9 @@ func (s *session) Receive() (event, error) {
 }
 
 // SetAuthentication sets the authentication for this session.
-func (s *session) SetAuthentication(id string) {
+func (s *session) SetAuthentication(userID string) {
 	s.authenticated = true
-	s.userID = id
+	s.userID = userID
 }
 
 // Authenticated lets you know what user this session is authenticated as.

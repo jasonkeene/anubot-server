@@ -1,4 +1,4 @@
-package api
+package twitch
 
 import (
 	"encoding/json"
@@ -6,18 +6,21 @@ import (
 	"log"
 	"time"
 
+	"github.com/jasonkeene/anubot-server/api/internal/handlers"
 	"github.com/jasonkeene/anubot-server/stream"
 
 	"github.com/pebbe/zmq4"
 )
 
-type message struct {
+// Message is the structure that is written out to the websocket connection.
+type Message struct {
 	Type    stream.Type     `json:"type"`
-	Twitch  *twitchMessage  `json:"twitch"`
-	Discord *discordMessage `json:"discord"`
+	Twitch  *TMessage       `json:"twitch"`
+	Discord *DiscordMessage `json:"discord"`
 }
 
-type twitchMessage struct {
+// TMessage represents a Twitch message.
+type TMessage struct {
 	Cmd    string            `json:"cmd"`
 	Nick   string            `json:"nick"`
 	Target string            `json:"target"`
@@ -26,13 +29,15 @@ type twitchMessage struct {
 	Tags   map[string]string `json:"tags"`
 }
 
-type discordMessage struct{}
+// DiscordMessage represents a Discord message.
+type DiscordMessage struct{}
 
 type messageWriter struct {
 	streamerUsername string
 	streamerSub      *zmq4.Socket
 	botSub           *zmq4.Socket
-	s                *session
+	s                handlers.Session
+	requestID        string
 }
 
 func newMessageWriter(
@@ -40,7 +45,8 @@ func newMessageWriter(
 	streamerTopic string,
 	botTopic string,
 	subEndpoints []string,
-	s *session,
+	s handlers.Session,
+	requestID string,
 ) (*messageWriter, error) {
 	streamerSub, err := zmq4.NewSocket(zmq4.SUB)
 	if err != nil {
@@ -76,19 +82,20 @@ func newMessageWriter(
 		streamerSub:      streamerSub,
 		botSub:           botSub,
 		s:                s,
+		requestID:        requestID,
 	}, nil
 }
 
-// startStreamer reads messages off of the streamer sub socket and writes them
+// StartStreamer reads messages off of the streamer sub socket and writes them
 // to the session's ws conn.
-func (mw *messageWriter) startStreamer() {
+func (mw *messageWriter) StartStreamer() {
 	for {
 		ms, err := readMessage(mw.streamerSub)
 		if err != nil {
 			log.Printf("got err reading from streamer socket: %s", err)
 			continue
 		}
-		err = mw.writeMessage(ms)
+		err = mw.WriteMessage(ms)
 		if err != nil {
 			log.Printf("got error when writing to ws conn, aborting: %s", err)
 			return
@@ -96,19 +103,19 @@ func (mw *messageWriter) startStreamer() {
 	}
 }
 
-// startBot reads messages off of the bot sub socket and writes them to the
+// StartBot reads messages off of the bot sub socket and writes them to the
 // session's ws conn.
-func (mw *messageWriter) startBot() {
+func (mw *messageWriter) StartBot() {
 	for {
 		ms, err := readMessage(mw.botSub)
 		if err != nil {
 			log.Printf("got err reading from streamer socket: %s", err)
 			continue
 		}
-		if !userMessage(ms, mw.streamerUsername) {
+		if !UserMessage(ms, mw.streamerUsername) {
 			continue
 		}
-		err = mw.writeMessage(ms)
+		err = mw.WriteMessage(ms)
 		if err != nil {
 			log.Printf("got error when writing to ws conn, aborting: %s", err)
 			return
@@ -133,22 +140,22 @@ func readMessage(sub *zmq4.Socket) (*stream.RXMessage, error) {
 	return &ms, nil
 }
 
-// userMessage returns true if the message was sent from the user, otherwise it
+// UserMessage returns true if the message was sent from the user, otherwise it
 // returns false.
-func userMessage(ms *stream.RXMessage, username string) bool {
+func UserMessage(ms *stream.RXMessage, username string) bool {
 	if ms.Type != stream.Twitch {
 		return false
 	}
 	return ms.Twitch.Line.Nick == username
 }
 
-func (mw *messageWriter) writeMessage(ms *stream.RXMessage) error {
-	p := message{
+func (mw *messageWriter) WriteMessage(ms *stream.RXMessage) error {
+	p := Message{
 		Type: ms.Type,
 	}
 	switch ms.Type {
 	case stream.Twitch:
-		p.Twitch = &twitchMessage{
+		p.Twitch = &TMessage{
 			Cmd:    ms.Twitch.Line.Cmd,
 			Nick:   ms.Twitch.Line.Nick,
 			Target: ms.Twitch.Line.Args[0],
@@ -163,9 +170,10 @@ func (mw *messageWriter) writeMessage(ms *stream.RXMessage) error {
 		log.Println("got unknown message type while reading from sub sock")
 		return nil
 	}
-	e := event{
-		Cmd:     "chat-message",
-		Payload: p,
+	e := handlers.Event{
+		Cmd:       "chat-message",
+		RequestID: mw.requestID,
+		Payload:   p,
 	}
 	return mw.s.Send(e)
 }
