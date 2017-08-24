@@ -1,7 +1,0 @@
-{
-    "dependencies": {
-        "github.com/a8m/expect": {
-            "branch": "master"
-        }
-    }
-}
